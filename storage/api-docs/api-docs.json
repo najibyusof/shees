@@ -1,0 +1,1352 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "SHEES API",
+        "description": "Safety, Health, Environment & Emergency System - RESTful API for incident management, training, inspections, and worker tracking.",
+        "version": "1.0",
+        "contact": {
+            "email": "api@shees.local"
+        },
+        "x-logo": {
+            "url": "https://via.placeholder.com/190x90?text=SHEES+API"
+        }
+    },
+    "servers": [
+        {
+            "url": "http://localhost",
+            "description": "Current Environment"
+        }
+    ],
+    "paths": {
+        "/api/auth/login": {
+            "post": {
+                "tags": ["Auth"],
+                "summary": "User login",
+                "description": "Authenticate user with email and password, returns Bearer token",
+                "operationId": "login",
+                "requestBody": {
+                    "description": "Login credentials",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "email",
+                                    "password",
+                                    "device_name"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "user@example.com",
+                                        "description": "User email address"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "password123",
+                                        "description": "User password"
+                                    },
+                                    "device_name": {
+                                        "type": "string",
+                                        "example": "Mobile App iOS",
+                                        "description": "Device identifier for multi-device support"
+                                    },
+                                    "ttl_minutes": {
+                                        "type": "integer",
+                                        "example": 10080,
+                                        "description": "Token time to live in minutes (default: 7 days)"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Login successful."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "token": {
+                                                    "type": "string",
+                                                    "example": "token_value_here",
+                                                    "description": "Bearer token for API requests"
+                                                },
+                                                "token_type": {
+                                                    "type": "string",
+                                                    "example": "Bearer"
+                                                },
+                                                "session_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "device_name": {
+                                                    "type": "string",
+                                                    "example": "Mobile App iOS"
+                                                },
+                                                "expires_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "example": "2026-04-04T10:30:00Z"
+                                                },
+                                                "user": {
+                                                    "$ref": "#/components/schemas/User"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials",
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                }
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "tags": ["Auth"],
+                "summary": "User logout",
+                "description": "Revoke the current user's mobile access token",
+                "operationId": "logout",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Logged out successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Logged out successfully."
+                                        },
+                                        "data": {
+                                            "type": "null"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "No active token",
+                        "$ref": "#/components/responses/BadRequestError"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
+        "/api/auth/user": {
+            "get": {
+                "tags": ["Auth"],
+                "summary": "Get current user",
+                "description": "Retrieve the profile of the authenticated user",
+                "operationId": "getUser",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User profile retrieved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/User"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            }
+        },
+        "/api/incidents": {
+            "get": {
+                "tags": ["Incident Management"],
+                "summary": "List all incidents",
+                "description": "Retrieve a paginated list of incidents. Non-admin users see only their own incidents.",
+                "operationId": "listIncidents",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "description": "Page number for pagination",
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Number of records per page",
+                        "schema": {
+                            "type": "integer",
+                            "example": 15
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "description": "Filter by incident status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "reported",
+                                "under_investigation",
+                                "resolved",
+                                "closed"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "classification",
+                        "in": "query",
+                        "description": "Filter by risk classification",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["high_risk", "medium_risk", "low_risk"]
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "description": "Search in title and description",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "Filter incidents from date (ISO 8601)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "Filter incidents until date (ISO 8601)",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Incidents list retrieved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Incident"
+                                            }
+                                        },
+                                        "meta": {
+                                            "$ref": "#/components/schemas/PaginationMeta"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    }
+                }
+            },
+            "post": {
+                "tags": ["Incident Management"],
+                "summary": "Create a new incident",
+                "description": "Create a new safety incident. Supports offline sync with temporary_id.",
+                "operationId": "createIncident",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["title", "status", "datetime"],
+                                "properties": {
+                                    "title": {
+                                        "type": "string",
+                                        "example": "Safety incident occurred"
+                                    },
+                                    "description": {
+                                        "type": "string",
+                                        "example": "Detailed description of the incident"
+                                    },
+                                    "status": {
+                                        "type": "string",
+                                        "enum": [
+                                            "reported",
+                                            "under_investigation",
+                                            "resolved",
+                                            "closed"
+                                        ],
+                                        "example": "reported"
+                                    },
+                                    "classification": {
+                                        "type": "string",
+                                        "enum": [
+                                            "high_risk",
+                                            "medium_risk",
+                                            "low_risk"
+                                        ],
+                                        "example": "high_risk"
+                                    },
+                                    "location": {
+                                        "type": "string",
+                                        "example": "Office Building A"
+                                    },
+                                    "datetime": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2026-03-28T14:30:00Z"
+                                    },
+                                    "temporary_id": {
+                                        "type": "string",
+                                        "example": "temp_12345",
+                                        "description": "Temporary ID for offline sync"
+                                    },
+                                    "local_created_at": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2026-03-28T14:20:00Z",
+                                        "description": "Local creation timestamp (offline)"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Incident created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Incident created"
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Incident"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                }
+            }
+        },
+        "/api/incidents/{id}": {
+            "get": {
+                "tags": ["Incident Management"],
+                "summary": "Get incident details",
+                "description": "Retrieve detailed information about a specific incident",
+                "operationId": "getIncident",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Incident ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Incident details retrieved",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Incident"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFoundError"
+                    }
+                }
+            },
+            "put": {
+                "tags": ["Incident Management"],
+                "summary": "Update incident",
+                "description": "Update an existing incident",
+                "operationId": "updateIncident",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Incident ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Incident updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Incident"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "$ref": "#/components/responses/ForbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFoundError"
+                    }
+                }
+            },
+            "delete": {
+                "tags": ["Incident Management"],
+                "summary": "Delete incident",
+                "description": "Soft delete an incident",
+                "operationId": "deleteIncident",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Incident ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Incident deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Incident deleted"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/ForbiddenError"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFoundError"
+                    }
+                }
+            }
+        },
+        "/api/sync": {
+            "post": {
+                "tags": ["Sync"],
+                "summary": "Synchronize offline data",
+                "description": "Synchronize data from offline mobile/field app. Supports bidirectional sync with conflict resolution.",
+                "operationId": "syncData",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "description": "Offline data to sync",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["device_id", "data"],
+                                "properties": {
+                                    "device_id": {
+                                        "type": "string",
+                                        "example": "abc-123-def-456",
+                                        "description": "Unique device identifier for tracking offline changes"
+                                    },
+                                    "last_synced_at": {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "example": "2026-03-27T08:00:00Z",
+                                        "description": "Timestamp of the last successful sync"
+                                    },
+                                    "conflict_strategy": {
+                                        "type": "string",
+                                        "enum": [
+                                            "last_updated_wins",
+                                            "client_wins",
+                                            "server_wins"
+                                        ],
+                                        "example": "last_updated_wins",
+                                        "description": "Strategy for resolving conflicts"
+                                    },
+                                    "data": {
+                                        "type": "object",
+                                        "description": "Offline-modified data organized by entity type",
+                                        "properties": {
+                                            "incidents": {
+                                                "type": "array",
+                                                "description": "New or modified incidents",
+                                                "items": {
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "attendance_logs": {
+                                                "type": "array",
+                                                "description": "New or modified attendance logs"
+                                            },
+                                            "inspections": {
+                                                "type": "array",
+                                                "description": "New or modified inspections"
+                                            },
+                                            "training": {
+                                                "type": "array",
+                                                "description": "New or modified training records"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Sync completed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Sync completed successfully."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "server_time": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "conflicts": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "synced_records": {
+                                                    "type": "object"
+                                                },
+                                                "server_updates": {
+                                                    "type": "object"
+                                                }
+                                            }
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "server_time": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "conflict_count": {
+                                                    "type": "integer",
+                                                    "example": 0
+                                                },
+                                                "conflict_strategy": {
+                                                    "type": "string",
+                                                    "example": "last_updated_wins"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/UnauthorizedError"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    }
+                }
+            }
+        },
+        "/api/training": {
+            "get": {
+                "tags": ["Training"],
+                "summary": "List training records",
+                "operationId": "listTraining",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Training list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Training"
+                                            }
+                                        },
+                                        "meta": {
+                                            "$ref": "#/components/schemas/PaginationMeta"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": ["Training"],
+                "summary": "Create training record",
+                "operationId": "createTraining",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["title", "scheduled_date"],
+                                "properties": {
+                                    "title": {
+                                        "type": "string"
+                                    },
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "duration_hours": {
+                                        "type": "integer"
+                                    },
+                                    "scheduled_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "trainees": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Training created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/Training"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/inspections": {
+            "get": {
+                "tags": ["Inspection"],
+                "summary": "List inspections",
+                "operationId": "listInspections",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Inspections list",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean"
+                                        },
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Inspection"
+                                            }
+                                        },
+                                        "meta": {
+                                            "$ref": "#/components/schemas/PaginationMeta"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": ["Inspection"],
+                "summary": "Create inspection",
+                "operationId": "createInspection",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["title", "location"],
+                                "properties": {
+                                    "title": {
+                                        "type": "string"
+                                    },
+                                    "location": {
+                                        "type": "string"
+                                    },
+                                    "inspection_type": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Inspection created"
+                    }
+                }
+            }
+        },
+        "/api/workers": {
+            "get": {
+                "tags": ["Worker Tracking"],
+                "summary": "List workers",
+                "operationId": "listWorkers",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Workers list"
+                    }
+                }
+            }
+        },
+        "/api/attendance": {
+            "get": {
+                "tags": ["Worker Tracking"],
+                "summary": "List attendance logs",
+                "operationId": "listAttendance",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attendance list"
+                    }
+                }
+            },
+            "post": {
+                "tags": ["Worker Tracking"],
+                "summary": "Record attendance",
+                "operationId": "createAttendance",
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["worker_id", "check_in_time"],
+                                "properties": {
+                                    "worker_id": {
+                                        "type": "integer"
+                                    },
+                                    "check_in_time": {
+                                        "type": "string",
+                                        "format": "date-time"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Attendance recorded"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Incident": {
+                "type": "object",
+                "required": ["id", "title", "status", "reported_by"],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1,
+                        "description": "Incident ID"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Safety incident occurred",
+                        "description": "Incident title"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Detailed description of the incident",
+                        "description": "Full incident description"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "reported",
+                            "under_investigation",
+                            "resolved",
+                            "closed"
+                        ],
+                        "example": "under_investigation",
+                        "description": "Current status of the incident"
+                    },
+                    "classification": {
+                        "type": "string",
+                        "enum": ["high_risk", "medium_risk", "low_risk"],
+                        "example": "high_risk",
+                        "description": "Risk classification"
+                    },
+                    "location": {
+                        "type": "string",
+                        "example": "Office Building A",
+                        "description": "Incident location"
+                    },
+                    "reported_by": {
+                        "type": "integer",
+                        "example": 1,
+                        "description": "User ID who reported the incident"
+                    },
+                    "datetime": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-03-28T14:30:00Z",
+                        "description": "Date and time of incident"
+                    },
+                    "temporary_id": {
+                        "type": "string",
+                        "example": "temp_12345",
+                        "description": "Temporary ID for offline sync"
+                    },
+                    "local_created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-03-28T14:20:00Z",
+                        "description": "Local creation timestamp (offline)"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-03-28T14:30:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2026-03-28T15:00:00Z"
+                    }
+                }
+            },
+            "User": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "John Doe"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "john@example.com"
+                    },
+                    "roles": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "example": ["Safety Officer"]
+                    },
+                    "permissions": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "example": ["manage_incidents"]
+                    }
+                }
+            },
+            "Training": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Fire Safety 101"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "duration_hours": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "scheduled_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-04-15"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "in_progress",
+                            "completed",
+                            "cancelled"
+                        ]
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "Inspection": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Monthly Site Inspection"
+                    },
+                    "location": {
+                        "type": "string",
+                        "example": "Site A"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "draft",
+                            "in_progress",
+                            "completed",
+                            "reviewed"
+                        ]
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "PaginationMeta": {
+                "type": "object",
+                "properties": {
+                    "total": {
+                        "type": "integer",
+                        "example": 100
+                    },
+                    "per_page": {
+                        "type": "integer",
+                        "example": 15
+                    },
+                    "current_page": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "last_page": {
+                        "type": "integer",
+                        "example": 7
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "bearer_token": {
+                "type": "http",
+                "description": "Login with email and password to get the authentication token",
+                "name": "Token",
+                "in": "header",
+                "scheme": "bearer",
+                "bearerFormat": "JWT"
+            }
+        },
+        "responses": {
+            "UnauthorizedError": {
+                "description": "Unauthorized",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "success": {
+                                    "type": "boolean",
+                                    "example": false
+                                },
+                                "message": {
+                                    "type": "string",
+                                    "example": "Unauthorized"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "ValidationError": {
+                "description": "Validation error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "success": {
+                                    "type": "boolean",
+                                    "example": false
+                                },
+                                "message": {
+                                    "type": "string",
+                                    "example": "Validation error"
+                                },
+                                "errors": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "NotFoundError": {
+                "description": "Not found",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "success": {
+                                    "type": "boolean",
+                                    "example": false
+                                },
+                                "message": {
+                                    "type": "string",
+                                    "example": "Not found"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "ForbiddenError": {
+                "description": "Forbidden",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "success": {
+                                    "type": "boolean",
+                                    "example": false
+                                },
+                                "message": {
+                                    "type": "string",
+                                    "example": "Forbidden"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "BadRequestError": {
+                "description": "Bad request",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "success": {
+                                    "type": "boolean",
+                                    "example": false
+                                },
+                                "message": {
+                                    "type": "string",
+                                    "example": "Bad request"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "security": [
+        {
+            "bearer_token": []
+        }
+    ]
+}
