@@ -6,6 +6,7 @@ use App\Models\Certificate;
 use App\Models\Training;
 use App\Models\User;
 use Database\Factories\TrainingFactory;
+use Faker\Factory;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -13,6 +14,8 @@ class TrainingSeeder extends Seeder
 {
     public function run(): void
     {
+        $faker = Factory::create();
+
         $users = User::query()->get();
         $workerUsers = User::query()
             ->whereHas('roles', fn ($query) => $query->where('name', 'Worker'))
@@ -56,7 +59,7 @@ class TrainingSeeder extends Seeder
                     'training_id' => $training->id,
                     'user_id' => $assignee->id,
                     'uploaded_by' => $assignedBy->id,
-                    'file_path' => 'certificates/'.Str::slug($training->title).'-'.fake()->uuid().'.pdf',
+                    'file_path' => 'certificates/'.Str::slug($training->title).'-'.$faker->uuid().'.pdf',
                     'original_name' => Str::slug($training->title).'-certificate.pdf',
                     'mime_type' => 'application/pdf',
                     'size' => random_int(120_000, 900_000),
@@ -104,7 +107,7 @@ class TrainingSeeder extends Seeder
                     'training_id' => $expiredTraining->id,
                     'user_id' => $workerUser->id,
                     'uploaded_by' => $assignedBy->id,
-                    'file_path' => 'certificates/expired-worker-'.$workerUser->id.'-'.fake()->uuid().'.pdf',
+                    'file_path' => 'certificates/expired-worker-'.$workerUser->id.'-'.$faker->uuid().'.pdf',
                     'original_name' => 'expired-worker-'.$workerUser->id.'-certificate.pdf',
                     'mime_type' => 'application/pdf',
                     'size' => random_int(120_000, 900_000),

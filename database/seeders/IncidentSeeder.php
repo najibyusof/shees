@@ -9,12 +9,15 @@ use App\Models\IncidentAttachment;
 use App\Models\IncidentComment;
 use App\Models\User;
 use Database\Factories\IncidentFactory;
+use Faker\Factory;
 use Illuminate\Database\Seeder;
 
 class IncidentSeeder extends Seeder
 {
     public function run(): void
     {
+        $faker = Factory::create();
+
         $reporters = User::query()
             ->whereHas('roles', fn ($query) => $query->whereIn('name', ['Worker', 'Supervisor']))
             ->get();
@@ -69,7 +72,7 @@ class IncidentSeeder extends Seeder
                 'approved_at' => $status === 'approved' && $reviewedAt ? (clone $reviewedAt)->addHours(random_int(1, 8)) : null,
                 'rejected_at' => $status === 'rejected' && $reviewedAt ? (clone $reviewedAt)->addHours(random_int(1, 8)) : null,
                 'rejection_reason' => $status === 'rejected' ? 'Insufficient containment evidence from initial report.' : null,
-                'title' => 'Incident: '.fake()->randomElement([
+                'title' => 'Incident: '.$faker->randomElement([
                     'Forklift near miss',
                     'Chemical spill in utility room',
                     'PPE non-compliance at loading dock',
@@ -80,8 +83,8 @@ class IncidentSeeder extends Seeder
 
             $attachmentCount = random_int(1, 3);
             for ($i = 0; $i < $attachmentCount; $i++) {
-                $ext = fake()->randomElement(['pdf', 'jpg', 'png']);
-                $name = fake()->slug(3).'-'.fake()->numerify('####');
+                $ext = $faker->randomElement(['pdf', 'jpg', 'png']);
+                $name = $faker->slug(3).'-'.$faker->numerify('####');
 
                 IncidentAttachment::query()->create([
                     'incident_id' => $incident->id,
@@ -95,7 +98,7 @@ class IncidentSeeder extends Seeder
             $commentCount = random_int(2, 5);
             for ($i = 0; $i < $commentCount; $i++) {
                 $commenter = $commenters->random();
-                $commentText = fake()->sentence(14);
+                $commentText = $faker->sentence(14);
 
                 if ($status === 'rejected' && $i === 0) {
                     $commenter = $manager;
@@ -161,7 +164,7 @@ class IncidentSeeder extends Seeder
                 'reviewed_by' => $safetyOfficer->id,
                 'approved_by' => $manager->id,
                 'rejected_by' => null,
-                'title' => 'High Risk: '.fake()->randomElement([
+                'title' => 'High Risk: '.$faker->randomElement([
                     'Ammonia leak near compressor bay',
                     'Scaffold collapse near loading area',
                     'Electrical panel arc flash event',

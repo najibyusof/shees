@@ -8,12 +8,15 @@ use App\Models\SiteAudit;
 use App\Models\SiteAuditApproval;
 use App\Models\SiteAuditKpi;
 use App\Models\User;
+use Faker\Factory;
 use Illuminate\Database\Seeder;
 
 class AuditSeeder extends Seeder
 {
     public function run(): void
     {
+        $faker = Factory::create();
+
         $owners = User::query()
             ->whereHas('roles', fn ($query) => $query->whereIn('name', ['Supervisor', 'Safety Officer', 'Manager']))
             ->get();
@@ -34,7 +37,7 @@ class AuditSeeder extends Seeder
             $owner = $owners->random();
             $manager = $managers->random();
             $safetyOfficer = $safetyOfficers->random();
-            $status = fake()->randomElement(['submitted', 'under_review', 'approved']);
+            $status = $faker->randomElement(['submitted', 'under_review', 'approved']);
             $scheduledFor = now()->subDays(random_int(5, 40));
 
             $audit = SiteAudit::query()->create([
@@ -44,15 +47,15 @@ class AuditSeeder extends Seeder
                 'approved_by' => $status === 'approved' ? $manager->id : null,
                 'rejected_by' => null,
                 'reference_no' => 'AUD-SEED-'.str_pad((string) $i, 4, '0', STR_PAD_LEFT),
-                'site_name' => fake()->randomElement(['North Plant', 'South Plant', 'Main Facility']),
-                'area' => fake()->randomElement(['Utilities', 'Packaging', 'Production', 'Storage']),
-                'audit_type' => fake()->randomElement(['internal', 'external']),
+                'site_name' => $faker->randomElement(['North Plant', 'South Plant', 'Main Facility']),
+                'area' => $faker->randomElement(['Utilities', 'Packaging', 'Production', 'Storage']),
+                'audit_type' => $faker->randomElement(['internal', 'external']),
                 'scheduled_for' => $scheduledFor->toDateString(),
                 'conducted_at' => (clone $scheduledFor)->addHours(3),
                 'status' => $status,
-                'kpi_score' => fake()->randomFloat(2, 70, 98),
-                'scope' => fake()->sentence(12),
-                'summary' => fake()->paragraph(2),
+                'kpi_score' => $faker->randomFloat(2, 70, 98),
+                'scope' => $faker->sentence(12),
+                'summary' => $faker->paragraph(2),
                 'rejection_reason' => null,
                 'submitted_at' => (clone $scheduledFor)->addHours(1),
                 'reviewed_at' => in_array($status, ['under_review', 'approved'], true) ? (clone $scheduledFor)->addHours(6) : null,
@@ -64,7 +67,7 @@ class AuditSeeder extends Seeder
                 'site_audit_id' => $audit->id,
                 'name' => 'PPE Compliance',
                 'target_value' => 95,
-                'actual_value' => fake()->randomFloat(2, 75, 99),
+                'actual_value' => $faker->randomFloat(2, 75, 99),
                 'unit' => '%',
                 'weight' => 3,
                 'status' => 'completed',
@@ -103,13 +106,13 @@ class AuditSeeder extends Seeder
                     'owner_id' => $ownerUser->id,
                     'verified_by' => null,
                     'reference_no' => 'NCR-SEED-'.$audit->id.'-'.str_pad((string) $ncrNo, 2, '0', STR_PAD_LEFT),
-                    'title' => fake()->sentence(5),
-                    'description' => fake()->paragraph(2),
-                    'severity' => fake()->randomElement(['low', 'medium', 'high']),
-                    'status' => fake()->randomElement(['open', 'in_progress', 'pending_verification']),
-                    'root_cause' => fake()->sentence(10),
-                    'containment_action' => fake()->sentence(10),
-                    'corrective_action_plan' => fake()->sentence(12),
+                    'title' => $faker->sentence(5),
+                    'description' => $faker->paragraph(2),
+                    'severity' => $faker->randomElement(['low', 'medium', 'high']),
+                    'status' => $faker->randomElement(['open', 'in_progress', 'pending_verification']),
+                    'root_cause' => $faker->sentence(10),
+                    'containment_action' => $faker->sentence(10),
+                    'corrective_action_plan' => $faker->sentence(12),
                     'due_date' => now()->addDays(random_int(7, 40))->toDateString(),
                     'verified_at' => null,
                     'closed_at' => null,
@@ -120,12 +123,12 @@ class AuditSeeder extends Seeder
                     'assigned_to' => $ownerUser->id,
                     'verified_by' => null,
                     'title' => 'Corrective Action for '.$ncr->reference_no,
-                    'description' => fake()->sentence(12),
-                    'status' => fake()->randomElement(['open', 'in_progress', 'completed']),
+                    'description' => $faker->sentence(12),
+                    'status' => $faker->randomElement(['open', 'in_progress', 'completed']),
                     'due_date' => now()->addDays(random_int(5, 30))->toDateString(),
                     'completed_at' => null,
                     'verified_at' => null,
-                    'completion_notes' => fake()->optional()->sentence(8),
+                    'completion_notes' => $faker->optional()->sentence(8),
                 ]);
             }
         }
@@ -144,13 +147,13 @@ class AuditSeeder extends Seeder
                 'approved_by' => null,
                 'rejected_by' => $manager->id,
                 'reference_no' => 'AUD-FAIL-'.str_pad((string) $i, 4, '0', STR_PAD_LEFT),
-                'site_name' => fake()->randomElement(['North Plant', 'South Plant', 'Main Facility']),
-                'area' => fake()->randomElement(['Packaging', 'Boiler', 'Chemical Storage']),
+                'site_name' => $faker->randomElement(['North Plant', 'South Plant', 'Main Facility']),
+                'area' => $faker->randomElement(['Packaging', 'Boiler', 'Chemical Storage']),
                 'audit_type' => 'internal',
                 'scheduled_for' => $scheduledFor->toDateString(),
                 'conducted_at' => (clone $scheduledFor)->addHours(2),
                 'status' => 'rejected',
-                'kpi_score' => fake()->randomFloat(2, 42, 68),
+                'kpi_score' => $faker->randomFloat(2, 42, 68),
                 'scope' => 'Focused compliance audit for high-risk controls.',
                 'summary' => 'Audit failed due to multiple high-severity non-conformances.',
                 'rejection_reason' => 'Critical controls were non-compliant across multiple sections.',
@@ -181,7 +184,7 @@ class AuditSeeder extends Seeder
             $ncrCount = random_int(3, 5);
             for ($ncrNo = 1; $ncrNo <= $ncrCount; $ncrNo++) {
                 $ownerUser = $owners->random();
-                $severity = fake()->randomElement(['medium', 'high']);
+                $severity = $faker->randomElement(['medium', 'high']);
 
                 $ncr = NcrReport::query()->create([
                     'site_audit_id' => $failedAudit->id,
@@ -190,12 +193,12 @@ class AuditSeeder extends Seeder
                     'verified_by' => null,
                     'reference_no' => 'NCR-FAIL-'.$failedAudit->id.'-'.str_pad((string) $ncrNo, 2, '0', STR_PAD_LEFT),
                     'title' => 'Failed Audit NCR '.$ncrNo,
-                    'description' => fake()->paragraph(2),
+                    'description' => $faker->paragraph(2),
                     'severity' => $severity,
-                    'status' => fake()->randomElement(['open', 'in_progress']),
-                    'root_cause' => fake()->sentence(10),
-                    'containment_action' => fake()->sentence(8),
-                    'corrective_action_plan' => fake()->sentence(12),
+                    'status' => $faker->randomElement(['open', 'in_progress']),
+                    'root_cause' => $faker->sentence(10),
+                    'containment_action' => $faker->sentence(8),
+                    'corrective_action_plan' => $faker->sentence(12),
                     'due_date' => now()->addDays(random_int(5, 25))->toDateString(),
                     'verified_at' => null,
                     'closed_at' => null,
@@ -206,8 +209,8 @@ class AuditSeeder extends Seeder
                     'assigned_to' => $ownerUser->id,
                     'verified_by' => null,
                     'title' => 'Urgent corrective action for '.$ncr->reference_no,
-                    'description' => fake()->sentence(12),
-                    'status' => fake()->randomElement(['open', 'in_progress']),
+                    'description' => $faker->sentence(12),
+                    'status' => $faker->randomElement(['open', 'in_progress']),
                     'due_date' => now()->addDays(random_int(3, 18))->toDateString(),
                     'completed_at' => null,
                     'verified_at' => null,

@@ -6,12 +6,15 @@ use App\Models\AuditLog;
 use App\Models\Incident;
 use App\Models\Training;
 use App\Models\User;
+use Faker\Factory;
 use Illuminate\Database\Seeder;
 
 class AuditLogSeeder extends Seeder
 {
     public function run(): void
     {
+        $faker = Factory::create();
+
         $users = User::query()->get();
         if ($users->isEmpty()) {
             return;
@@ -29,7 +32,7 @@ class AuditLogSeeder extends Seeder
                 'auditable_id' => $user->id,
                 'metadata' => [
                     'description' => 'User login from seeded scenario.',
-                    'ip_address' => fake()->ipv4(),
+                    'ip_address' => $faker->ipv4(),
                     'seeded' => true,
                 ],
                 'created_at' => now()->subDays(random_int(0, 30)),

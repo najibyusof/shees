@@ -7,6 +7,7 @@ use App\Models\InspectionChecklist;
 use App\Models\InspectionChecklistItem;
 use App\Models\InspectionResponse;
 use App\Models\User;
+use Faker\Factory;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -14,6 +15,8 @@ class InspectionSeeder extends Seeder
 {
     public function run(): void
     {
+        $faker = Factory::create();
+
         $supervisors = User::query()
             ->whereHas('roles', fn ($query) => $query->where('name', 'Supervisor'))
             ->get();
@@ -29,7 +32,7 @@ class InspectionSeeder extends Seeder
                 'offline_uuid' => (string) Str::uuid(),
                 'code' => 'CHK-'.str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT),
                 'title' => 'Supervisor Checklist '.($i + 1),
-                'description' => fake()->sentence(10),
+                'description' => $faker->sentence(10),
                 'title_translations' => null,
                 'description_translations' => null,
                 'version' => 1,
@@ -46,7 +49,7 @@ class InspectionSeeder extends Seeder
                 $items->push(InspectionChecklistItem::query()->create([
                     'inspection_checklist_id' => $checklist->id,
                     'offline_uuid' => (string) Str::uuid(),
-                    'label' => fake()->randomElement([
+                    'label' => $faker->randomElement([
                         'Emergency exit signage visible',
                         'PPE available at station',
                         'Housekeeping condition acceptable',
@@ -72,12 +75,12 @@ class InspectionSeeder extends Seeder
                 'inspection_checklist_id' => $checklist->id,
                 'inspector_id' => $supervisor->id,
                 'status' => $status,
-                'location' => fake()->randomElement(['Production Line', 'Warehouse', 'Compressor Room', 'Dispatch Area']),
+                'location' => $faker->randomElement(['Production Line', 'Warehouse', 'Compressor Room', 'Dispatch Area']),
                 'performed_at' => $performedAt,
                 'submitted_at' => $status === 'submitted' ? (clone $performedAt)->addHours(2) : null,
-                'notes' => fake()->sentence(12),
-                'device_identifier' => 'sup-device-'.fake()->numerify('##'),
-                'offline_reference' => 'INSP-'.fake()->numerify('######'),
+                'notes' => $faker->sentence(12),
+                'device_identifier' => 'sup-device-'.$faker->numerify('##'),
+                'offline_reference' => 'INSP-'.$faker->numerify('######'),
                 'sync_status' => 'synced',
                 'sync_batch_uuid' => null,
                 'last_synced_at' => now(),
@@ -94,8 +97,8 @@ class InspectionSeeder extends Seeder
                     'response_meta' => ['seeded' => true],
                     'is_non_compliant' => $failed,
                     'comment' => $failed
-                        ? fake()->sentence(10)
-                        : fake()->optional()->sentence(6),
+                        ? $faker->sentence(10)
+                        : $faker->optional()->sentence(6),
                     'sync_status' => 'synced',
                     'sync_batch_uuid' => null,
                     'last_synced_at' => now(),

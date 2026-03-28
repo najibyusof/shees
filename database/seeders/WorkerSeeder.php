@@ -5,12 +5,15 @@ namespace Database\Seeders;
 use App\Models\AttendanceLog;
 use App\Models\User;
 use App\Models\Worker;
+use Faker\Factory;
 use Illuminate\Database\Seeder;
 
 class WorkerSeeder extends Seeder
 {
     public function run(): void
     {
+        $faker = Factory::create();
+
         $workerUsers = User::query()
             ->whereHas('roles', fn ($query) => $query->where('name', 'Worker'))
             ->get();
@@ -29,13 +32,13 @@ class WorkerSeeder extends Seeder
             $worker = Worker::query()->create([
                 'user_id' => $linkedUser?->id,
                 'employee_code' => 'WK-SEED-'.str_pad((string) $i, 4, '0', STR_PAD_LEFT),
-                'full_name' => $linkedUser?->name ?? fake()->name(),
-                'phone' => fake()->phoneNumber(),
-                'department' => fake()->randomElement(['Operations', 'Maintenance', 'Warehouse', 'Quality']),
-                'position' => fake()->randomElement(['Operator', 'Technician', 'Inspector']),
-                'status' => fake()->randomElement(['active', 'active', 'active', 'on-leave']),
-                'geofence_center_latitude' => fake()->latitude(14.4, 14.8),
-                'geofence_center_longitude' => fake()->longitude(120.8, 121.2),
+                'full_name' => $linkedUser?->name ?? $faker->name(),
+                'phone' => $faker->phoneNumber(),
+                'department' => $faker->randomElement(['Operations', 'Maintenance', 'Warehouse', 'Quality']),
+                'position' => $faker->randomElement(['Operator', 'Technician', 'Inspector']),
+                'status' => $faker->randomElement(['active', 'active', 'active', 'on-leave']),
+                'geofence_center_latitude' => $faker->latitude(14.4, 14.8),
+                'geofence_center_longitude' => $faker->longitude(120.8, 121.2),
                 'geofence_radius_meters' => random_int(80, 180),
                 'last_latitude' => null,
                 'last_longitude' => null,
@@ -52,14 +55,14 @@ class WorkerSeeder extends Seeder
                 'recorded_by' => $recorders->random()->id,
                 'event_type' => 'check_in',
                 'logged_at' => $baseDate,
-                'latitude' => fake()->latitude(14.4, 14.8),
-                'longitude' => fake()->longitude(120.8, 121.2),
+                'latitude' => $faker->latitude(14.4, 14.8),
+                'longitude' => $faker->longitude(120.8, 121.2),
                 'accuracy_meters' => random_int(3, 15),
                 'speed_mps' => 0,
                 'heading_degrees' => null,
-                'source' => fake()->randomElement(['gps', 'manual']),
-                'device_identifier' => 'worker-device-'.fake()->numerify('###'),
-                'external_event_id' => fake()->uuid(),
+                'source' => $faker->randomElement(['gps', 'manual']),
+                'device_identifier' => 'worker-device-'.$faker->numerify('###'),
+                'external_event_id' => $faker->uuid(),
                 'inside_geofence' => true,
                 'distance_from_geofence_meters' => random_int(1, 45),
                 'alert_level' => null,
@@ -77,17 +80,17 @@ class WorkerSeeder extends Seeder
                     'recorded_by' => $recorders->random()->id,
                     'event_type' => 'ping',
                     'logged_at' => $loggedAt,
-                    'latitude' => fake()->latitude(14.4, 14.8),
-                    'longitude' => fake()->longitude(120.8, 121.2),
+                    'latitude' => $faker->latitude(14.4, 14.8),
+                    'longitude' => $faker->longitude(120.8, 121.2),
                     'accuracy_meters' => random_int(3, 20),
-                    'speed_mps' => fake()->randomFloat(2, 0, 2),
-                    'heading_degrees' => fake()->optional()->randomFloat(2, 0, 360),
-                    'source' => fake()->randomElement(['gps', 'manual', 'api']),
-                    'device_identifier' => 'worker-device-'.fake()->numerify('###'),
-                    'external_event_id' => fake()->uuid(),
+                    'speed_mps' => $faker->randomFloat(2, 0, 2),
+                    'heading_degrees' => $faker->optional()->randomFloat(2, 0, 360),
+                    'source' => $faker->randomElement(['gps', 'manual', 'api']),
+                    'device_identifier' => 'worker-device-'.$faker->numerify('###'),
+                    'external_event_id' => $faker->uuid(),
                     'inside_geofence' => $inside,
                     'distance_from_geofence_meters' => $inside ? random_int(1, 60) : random_int(120, 900),
-                    'alert_level' => $inside ? null : fake()->randomElement(['medium', 'high']),
+                    'alert_level' => $inside ? null : $faker->randomElement(['medium', 'high']),
                     'alert_message' => $inside ? null : 'Worker outside geofence boundary.',
                     'meta' => ['seeded' => true],
                 ]);
@@ -103,14 +106,14 @@ class WorkerSeeder extends Seeder
                     'recorded_by' => $recorders->random()->id,
                     'event_type' => 'check_out',
                     'logged_at' => $checkoutAt,
-                    'latitude' => fake()->latitude(14.4, 14.8),
-                    'longitude' => fake()->longitude(120.8, 121.2),
+                    'latitude' => $faker->latitude(14.4, 14.8),
+                    'longitude' => $faker->longitude(120.8, 121.2),
                     'accuracy_meters' => random_int(3, 15),
                     'speed_mps' => 0,
                     'heading_degrees' => null,
-                    'source' => fake()->randomElement(['gps', 'manual']),
-                    'device_identifier' => 'worker-device-'.fake()->numerify('###'),
-                    'external_event_id' => fake()->uuid(),
+                    'source' => $faker->randomElement(['gps', 'manual']),
+                    'device_identifier' => 'worker-device-'.$faker->numerify('###'),
+                    'external_event_id' => $faker->uuid(),
                     'inside_geofence' => true,
                     'distance_from_geofence_meters' => random_int(1, 50),
                     'alert_level' => null,
@@ -122,8 +125,8 @@ class WorkerSeeder extends Seeder
             }
 
             $worker->update([
-                'last_latitude' => fake()->latitude(14.4, 14.8),
-                'last_longitude' => fake()->longitude(120.8, 121.2),
+                'last_latitude' => $faker->latitude(14.4, 14.8),
+                'last_longitude' => $faker->longitude(120.8, 121.2),
                 'last_seen_at' => $latestLogAt,
             ]);
         }
