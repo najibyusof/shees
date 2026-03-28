@@ -35,7 +35,7 @@ class InspectionSeeder extends Seeder
                 'offline_uuid' => (string) Str::uuid(),
                 'code' => 'CHK-'.str_pad((string) ($i + 1), 3, '0', STR_PAD_LEFT),
                 'title' => 'Supervisor Checklist '.($i + 1),
-                'description' => $this->faker->sentence(10),
+                'description' => $faker->sentence(10),
                 'title_translations' => null,
                 'description_translations' => null,
                 'version' => 1,
@@ -52,7 +52,7 @@ class InspectionSeeder extends Seeder
                 $items->push(InspectionChecklistItem::query()->create([
                     'inspection_checklist_id' => $checklist->id,
                     'offline_uuid' => (string) Str::uuid(),
-                    'label' => $this->faker->randomElement([
+                    'label' => $faker->randomElement([
                         'Emergency exit signage visible',
                         'PPE available at station',
                         'Housekeeping condition acceptable',
@@ -78,12 +78,12 @@ class InspectionSeeder extends Seeder
                 'inspection_checklist_id' => $checklist->id,
                 'inspector_id' => $supervisor->id,
                 'status' => $status,
-                'location' => $this->faker->randomElement(['Production Line', 'Warehouse', 'Compressor Room', 'Dispatch Area']),
+                'location' => $faker->randomElement(['Production Line', 'Warehouse', 'Compressor Room', 'Dispatch Area']),
                 'performed_at' => $performedAt,
                 'submitted_at' => $status === 'submitted' ? (clone $performedAt)->addHours(2) : null,
-                'notes' => $this->faker->sentence(12),
-                'device_identifier' => 'sup-device-'.$this->faker->numerify('##'),
-                'offline_reference' => 'INSP-'.$this->faker->numerify('######'),
+                'notes' => $faker->sentence(12),
+                'device_identifier' => 'sup-device-'.$faker->numerify('##'),
+                'offline_reference' => 'INSP-'.$faker->numerify('######'),
                 'sync_status' => 'synced',
                 'sync_batch_uuid' => null,
                 'last_synced_at' => now(),
@@ -100,8 +100,8 @@ class InspectionSeeder extends Seeder
                     'response_meta' => ['seeded' => true],
                     'is_non_compliant' => $failed,
                     'comment' => $failed
-                        ? $this->faker->sentence(10)
-                        : $this->faker->optional()->sentence(6),
+                        ? $faker->sentence(10)
+                        : $faker->optional()->sentence(6),
                     'sync_status' => 'synced',
                     'sync_batch_uuid' => null,
                     'last_synced_at' => now(),
@@ -110,3 +110,5 @@ class InspectionSeeder extends Seeder
         }
     }
 }
+
+

@@ -34,7 +34,7 @@ class AuditLogSeeder extends Seeder
                 'auditable_id' => $user->id,
                 'metadata' => [
                     'description' => 'User login from seeded scenario.',
-                    'ip_address' => $this->faker->ipv4(),
+                    'ip_address' => $faker->ipv4(),
                     'seeded' => true,
                 ],
                 'created_at' => now()->subDays(random_int(0, 30)),
@@ -115,3 +115,5 @@ class AuditLogSeeder extends Seeder
         }
     }
 }
+
+
