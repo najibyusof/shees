@@ -17,6 +17,7 @@ use App\Models\Worker;
 use Illuminate\Support\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -104,15 +105,20 @@ class DashboardController extends Controller
             }
         }
 
-        $topFailingDevices = InspectionSyncJob::query()
+        $failingDevicesBase = InspectionSyncJob::query()
             ->whereBetween('created_at', [$from, $now])
             ->whereIn('status', ['failed', 'conflict'])
             ->selectRaw("COALESCE(NULLIF(device_identifier, ''), 'unknown-device') as device")
+            ->select(['status', 'created_at']);
+
+        $topFailingDevices = DB::query()
+            ->fromSub($failingDevicesBase, 'sync_jobs')
+            ->select('device')
             ->selectRaw('COUNT(*) as failures')
             ->selectRaw("SUM(CASE WHEN status = 'conflict' THEN 1 ELSE 0 END) as conflicts")
             ->selectRaw("SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed")
             ->selectRaw('MAX(created_at) as last_seen_at')
-            ->groupByRaw("COALESCE(NULLIF(device_identifier, ''), 'unknown-device')")
+            ->groupBy('device')
             ->orderByDesc('failures')
             ->limit(5)
             ->get()
