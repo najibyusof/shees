@@ -8,15 +8,17 @@ use App\Models\IncidentApproval;
 use App\Models\IncidentAttachment;
 use App\Models\IncidentComment;
 use App\Models\User;
+use Database\Seeders\Support\SeedDataGenerator;
 use Database\Factories\IncidentFactory;
-use Faker\Factory;
 use Illuminate\Database\Seeder;
 
 class IncidentSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = Factory::create();
+        $faker = class_exists('Faker\\Factory')
+            ? \Faker\Factory::create()
+            : new SeedDataGenerator();
 
         $reporters = User::query()
             ->whereHas('roles', fn ($query) => $query->whereIn('name', ['Worker', 'Supervisor']))

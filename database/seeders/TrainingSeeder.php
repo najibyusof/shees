@@ -5,8 +5,8 @@ namespace Database\Seeders;
 use App\Models\Certificate;
 use App\Models\Training;
 use App\Models\User;
+use Database\Seeders\Support\SeedDataGenerator;
 use Database\Factories\TrainingFactory;
-use Faker\Factory;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -14,7 +14,9 @@ class TrainingSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = Factory::create();
+        $faker = class_exists('Faker\\Factory')
+            ? \Faker\Factory::create()
+            : new SeedDataGenerator();
 
         $users = User::query()->get();
         $workerUsers = User::query()

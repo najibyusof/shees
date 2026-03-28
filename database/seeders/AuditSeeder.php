@@ -8,14 +8,16 @@ use App\Models\SiteAudit;
 use App\Models\SiteAuditApproval;
 use App\Models\SiteAuditKpi;
 use App\Models\User;
-use Faker\Factory;
+use Database\Seeders\Support\SeedDataGenerator;
 use Illuminate\Database\Seeder;
 
 class AuditSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = Factory::create();
+        $faker = class_exists('Faker\\Factory')
+            ? \Faker\Factory::create()
+            : new SeedDataGenerator();
 
         $owners = User::query()
             ->whereHas('roles', fn ($query) => $query->whereIn('name', ['Supervisor', 'Safety Officer', 'Manager']))
@@ -39,6 +41,11 @@ class AuditSeeder extends Seeder
             $safetyOfficer = $safetyOfficers->random();
             $status = $faker->randomElement(['submitted', 'under_review', 'approved']);
             $scheduledFor = now()->subDays(random_int(5, 40));
+            $referenceNo = 'AUD-SEED-'.str_pad((string) $i, 4, '0', STR_PAD_LEFT);
+
+            if (SiteAudit::query()->where('reference_no', $referenceNo)->exists()) {
+                continue;
+            }
 
             $audit = SiteAudit::query()->create([
                 'created_by' => $owner->id,
@@ -46,7 +53,7 @@ class AuditSeeder extends Seeder
                 'reviewed_by' => in_array($status, ['under_review', 'approved'], true) ? $safetyOfficer->id : null,
                 'approved_by' => $status === 'approved' ? $manager->id : null,
                 'rejected_by' => null,
-                'reference_no' => 'AUD-SEED-'.str_pad((string) $i, 4, '0', STR_PAD_LEFT),
+                'reference_no' => $referenceNo,
                 'site_name' => $faker->randomElement(['North Plant', 'South Plant', 'Main Facility']),
                 'area' => $faker->randomElement(['Utilities', 'Packaging', 'Production', 'Storage']),
                 'audit_type' => $faker->randomElement(['internal', 'external']),
@@ -139,6 +146,11 @@ class AuditSeeder extends Seeder
             $manager = $managers->random();
             $safetyOfficer = $safetyOfficers->random();
             $scheduledFor = now()->subDays(random_int(12, 35));
+            $failedReferenceNo = 'AUD-FAIL-'.str_pad((string) $i, 4, '0', STR_PAD_LEFT);
+
+            if (SiteAudit::query()->where('reference_no', $failedReferenceNo)->exists()) {
+                continue;
+            }
 
             $failedAudit = SiteAudit::query()->create([
                 'created_by' => $owner->id,
@@ -146,7 +158,7 @@ class AuditSeeder extends Seeder
                 'reviewed_by' => $safetyOfficer->id,
                 'approved_by' => null,
                 'rejected_by' => $manager->id,
-                'reference_no' => 'AUD-FAIL-'.str_pad((string) $i, 4, '0', STR_PAD_LEFT),
+                'reference_no' => $failedReferenceNo,
                 'site_name' => $faker->randomElement(['North Plant', 'South Plant', 'Main Facility']),
                 'area' => $faker->randomElement(['Packaging', 'Boiler', 'Chemical Storage']),
                 'audit_type' => 'internal',

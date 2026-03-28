@@ -7,7 +7,7 @@ use App\Models\InspectionChecklist;
 use App\Models\InspectionChecklistItem;
 use App\Models\InspectionResponse;
 use App\Models\User;
-use Faker\Factory;
+use Database\Seeders\Support\SeedDataGenerator;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -15,7 +15,9 @@ class InspectionSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = Factory::create();
+        $faker = class_exists('Faker\\Factory')
+            ? \Faker\Factory::create()
+            : new SeedDataGenerator();
 
         $supervisors = User::query()
             ->whereHas('roles', fn ($query) => $query->where('name', 'Supervisor'))

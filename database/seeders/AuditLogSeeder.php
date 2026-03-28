@@ -6,14 +6,16 @@ use App\Models\AuditLog;
 use App\Models\Incident;
 use App\Models\Training;
 use App\Models\User;
-use Faker\Factory;
+use Database\Seeders\Support\SeedDataGenerator;
 use Illuminate\Database\Seeder;
 
 class AuditLogSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = Factory::create();
+        $faker = class_exists('Faker\\Factory')
+            ? \Faker\Factory::create()
+            : new SeedDataGenerator();
 
         $users = User::query()->get();
         if ($users->isEmpty()) {

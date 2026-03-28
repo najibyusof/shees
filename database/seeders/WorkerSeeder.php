@@ -5,14 +5,16 @@ namespace Database\Seeders;
 use App\Models\AttendanceLog;
 use App\Models\User;
 use App\Models\Worker;
-use Faker\Factory;
+use Database\Seeders\Support\SeedDataGenerator;
 use Illuminate\Database\Seeder;
 
 class WorkerSeeder extends Seeder
 {
     public function run(): void
     {
-        $faker = Factory::create();
+        $faker = class_exists('Faker\\Factory')
+            ? \Faker\Factory::create()
+            : new SeedDataGenerator();
 
         $workerUsers = User::query()
             ->whereHas('roles', fn ($query) => $query->where('name', 'Worker'))
@@ -28,10 +30,15 @@ class WorkerSeeder extends Seeder
 
         for ($i = 1; $i <= 20; $i++) {
             $linkedUser = $workerUsers->isNotEmpty() && $i <= $workerUsers->count() ? $workerUsers[$i - 1] : null;
+            $employeeCode = 'WK-SEED-'.str_pad((string) $i, 4, '0', STR_PAD_LEFT);
+
+            if (Worker::query()->where('employee_code', $employeeCode)->exists()) {
+                continue;
+            }
 
             $worker = Worker::query()->create([
                 'user_id' => $linkedUser?->id,
-                'employee_code' => 'WK-SEED-'.str_pad((string) $i, 4, '0', STR_PAD_LEFT),
+                'employee_code' => $employeeCode,
                 'full_name' => $linkedUser?->name ?? $faker->name(),
                 'phone' => $faker->phoneNumber(),
                 'department' => $faker->randomElement(['Operations', 'Maintenance', 'Warehouse', 'Quality']),
