@@ -15,10 +15,86 @@ use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkerTrackingPageController;
 use App\Http\Controllers\WorkerTrackingController;
+use App\Models\CorrectiveAction;
+use App\Models\Incident;
+use App\Models\SiteAudit;
+use App\Models\Worker;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 
 Route::get('/', function () {
-    return view('welcome');
+    $landingMetrics = Cache::remember('landing.metrics', now()->addMinutes(5), function () {
+        $defaults = [
+            'stats' => [
+                ['label' => 'Open Incidents', 'value' => 0],
+                ['label' => 'Training Completion', 'value' => 0, 'suffix' => '%'],
+                ['label' => 'Active Workers', 'value' => 0],
+                ['label' => 'Active Sites', 'value' => 0],
+            ],
+            'today_summary' => 'Live operational metrics refresh automatically as your SHEES data grows.',
+            'last_updated_label' => now()->format('M d, Y H:i'),
+            'last_updated_at' => now()->toIso8601String(),
+        ];
+
+        if (! Schema::hasTable('incidents') || ! Schema::hasTable('workers') || ! Schema::hasTable('site_audits') || ! Schema::hasTable('training_user')) {
+            return $defaults;
+        }
+
+        $openIncidents = Incident::query()
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhereRaw('LOWER(status) NOT IN (?, ?, ?)', ['approved', 'rejected', 'closed']);
+            })
+            ->count();
+
+        $activeWorkers = Worker::query()
+            ->whereRaw('LOWER(status) = ?', ['active'])
+            ->count();
+
+        $activeSites = SiteAudit::query()
+            ->whereIn('status', ['scheduled', 'in_progress', 'submitted', 'under_review'])
+            ->distinct('site_name')
+            ->count('site_name');
+
+        if ($activeSites === 0) {
+            $activeSites = SiteAudit::query()->distinct('site_name')->count('site_name');
+        }
+
+        $totalAssignments = (int) DB::table('training_user')->count();
+        $completedAssignments = (int) DB::table('training_user')
+            ->where(function ($query) {
+                $query->whereNotNull('completed_at')
+                    ->orWhereRaw('LOWER(completion_status) = ?', ['completed']);
+            })
+            ->count();
+
+        $trainingCompletion = $totalAssignments > 0
+            ? (int) round(($completedAssignments / $totalAssignments) * 100)
+            : 0;
+
+        $incidentsToday = Incident::query()->whereDate('created_at', today())->count();
+        $actionsCompletedToday = Schema::hasTable('corrective_actions')
+            ? CorrectiveAction::query()->whereDate('completed_at', today())->count()
+            : 0;
+
+        return [
+            'stats' => [
+                ['label' => 'Open Incidents', 'value' => $openIncidents],
+                ['label' => 'Training Completion', 'value' => $trainingCompletion, 'suffix' => '%'],
+                ['label' => 'Active Workers', 'value' => $activeWorkers],
+                ['label' => 'Active Sites', 'value' => $activeSites],
+            ],
+            'today_summary' => "{$incidentsToday} new incidents logged today and {$actionsCompletedToday} corrective actions completed.",
+            'last_updated_label' => now()->format('M d, Y H:i'),
+            'last_updated_at' => now()->toIso8601String(),
+        ];
+    });
+
+    return view('welcome', [
+        'landingMetrics' => $landingMetrics,
+    ]);
 })->name('landing');
 
 Route::get('/dashboard', DashboardController::class)
