@@ -20,13 +20,13 @@ class CorrectiveActionFactory extends Factory
             'ncr_report_id' => NcrReport::query()->inRandomOrder()->value('id') ?? NcrReportFactory::new(),
             'assigned_to' => User::query()->inRandomOrder()->value('id') ?? User::factory(),
             'verified_by' => null,
-            'title' => fake()->sentence(5),
-            'description' => fake()->paragraph(2),
-            'status' => fake()->randomElement(['open', 'in_progress', 'completed', 'verified']),
-            'due_date' => fake()->optional()->dateTimeBetween('now', '+60 days')->format('Y-m-d'),
+            'title' => $this->faker->sentence(5),
+            'description' => $this->faker->paragraph(2),
+            'status' => $this->faker->randomElement(['open', 'in_progress', 'completed', 'verified']),
+            'due_date' => $this->faker->optional()->dateTimeBetween('now', '+60 days')->format('Y-m-d'),
             'completed_at' => null,
             'verified_at' => null,
-            'completion_notes' => fake()->optional()->sentence(10),
+            'completion_notes' => $this->faker->optional()->sentence(10),
         ];
     }
 }

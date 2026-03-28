@@ -16,15 +16,15 @@ class IncidentAttachmentFactory extends Factory
 
     public function definition(): array
     {
-        $extension = fake()->randomElement(['pdf', 'jpg', 'png']);
-        $name = Str::slug(fake()->words(3, true));
+        $extension = $this->faker->randomElement(['pdf', 'jpg', 'png']);
+        $name = Str::slug($this->faker->words(3, true));
 
         return [
             'incident_id' => Incident::query()->inRandomOrder()->value('id') ?? IncidentFactory::new(),
             'original_name' => $name.'.'.$extension,
-            'path' => 'incidents/'.$name.'-'.fake()->uuid().'.'.$extension,
+            'path' => 'incidents/'.$name.'-'.$this->faker->uuid().'.'.$extension,
             'mime_type' => $extension === 'pdf' ? 'application/pdf' : 'image/'.$extension,
-            'size' => fake()->numberBetween(10_000, 4_000_000),
+            'size' => $this->faker->numberBetween(10_000, 4_000_000),
         ];
     }
 }

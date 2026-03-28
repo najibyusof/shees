@@ -14,12 +14,12 @@ class PermissionFactory extends Factory
 
     public function definition(): array
     {
-        $resource = fake()->randomElement(['users', 'reports', 'audits', 'incidents', 'workers', 'trainings']);
-        $action = fake()->randomElement(['view', 'create', 'update', 'delete', 'approve', 'manage']);
+        $resource = $this->faker->randomElement(['users', 'reports', 'audits', 'incidents', 'workers', 'trainings']);
+        $action = $this->faker->randomElement(['view', 'create', 'update', 'delete', 'approve', 'manage']);
 
         return [
-            'name' => fake()->unique()->slug(2).'.'.$resource.'.'.$action,
-            'description' => fake()->sentence(6),
+            'name' => $this->faker->unique()->slug(2).'.'.$resource.'.'.$action,
+            'description' => $this->faker->sentence(6),
         ];
     }
 }

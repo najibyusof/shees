@@ -17,16 +17,16 @@ class CertificateFactory extends Factory
 
     public function definition(): array
     {
-        $issuedAt = fake()->dateTimeBetween('-15 months', '-2 months');
+        $issuedAt = $this->faker->dateTimeBetween('-15 months', '-2 months');
 
         return [
             'training_id' => Training::query()->inRandomOrder()->value('id') ?? TrainingFactory::new(),
             'user_id' => User::query()->inRandomOrder()->value('id') ?? User::factory(),
             'uploaded_by' => User::query()->inRandomOrder()->value('id') ?? User::factory(),
-            'file_path' => 'certificates/'.Str::slug(fake()->words(3, true)).'-'.fake()->uuid().'.pdf',
-            'original_name' => Str::slug(fake()->words(2, true)).'.pdf',
+            'file_path' => 'certificates/'.Str::slug($this->faker->words(3, true)).'-'.$this->faker->uuid().'.pdf',
+            'original_name' => Str::slug($this->faker->words(2, true)).'.pdf',
             'mime_type' => 'application/pdf',
-            'size' => fake()->numberBetween(80_000, 900_000),
+            'size' => $this->faker->numberBetween(80_000, 900_000),
             'issued_at' => $issuedAt,
             'expires_at' => (clone $issuedAt)->modify('+365 days'),
             'expiry_notified_at' => null,

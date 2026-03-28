@@ -17,7 +17,7 @@ class InspectionResponseFactory extends Factory
 
     public function definition(): array
     {
-        $failed = fake()->boolean(25);
+        $failed = $this->faker->boolean(25);
 
         return [
             'inspection_id' => Inspection::query()->inRandomOrder()->value('id') ?? InspectionFactory::new(),
@@ -26,8 +26,8 @@ class InspectionResponseFactory extends Factory
             'response_value' => $failed ? 'failed' : 'passed',
             'response_meta' => ['seeded' => true],
             'is_non_compliant' => $failed,
-            'comment' => $failed ? fake()->sentence(10) : fake()->optional()->sentence(6),
-            'sync_status' => fake()->randomElement(['synced', 'pending_sync']),
+            'comment' => $failed ? $this->faker->sentence(10) : $this->faker->optional()->sentence(6),
+            'sync_status' => $this->faker->randomElement(['synced', 'pending_sync']),
             'sync_batch_uuid' => null,
             'last_synced_at' => now(),
         ];

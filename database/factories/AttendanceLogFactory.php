@@ -16,24 +16,24 @@ class AttendanceLogFactory extends Factory
 
     public function definition(): array
     {
-        $inside = fake()->boolean(80);
+        $inside = $this->faker->boolean(80);
 
         return [
             'worker_id' => Worker::query()->inRandomOrder()->value('id') ?? WorkerFactory::new(),
             'recorded_by' => User::query()->inRandomOrder()->value('id'),
-            'event_type' => fake()->randomElement(['check_in', 'check_out', 'ping', 'manual_adjustment']),
-            'logged_at' => fake()->dateTimeBetween('-15 days', 'now'),
-            'latitude' => fake()->latitude(14.4, 14.8),
-            'longitude' => fake()->longitude(120.8, 121.2),
-            'accuracy_meters' => fake()->optional()->randomFloat(2, 2, 25),
-            'speed_mps' => fake()->optional()->randomFloat(2, 0, 5),
-            'heading_degrees' => fake()->optional()->randomFloat(2, 0, 360),
-            'source' => fake()->randomElement(['simulated', 'gps', 'manual', 'api']),
-            'device_identifier' => 'device-'.fake()->numerify('###'),
-            'external_event_id' => fake()->uuid(),
+            'event_type' => $this->faker->randomElement(['check_in', 'check_out', 'ping', 'manual_adjustment']),
+            'logged_at' => $this->faker->dateTimeBetween('-15 days', 'now'),
+            'latitude' => $this->faker->latitude(14.4, 14.8),
+            'longitude' => $this->faker->longitude(120.8, 121.2),
+            'accuracy_meters' => $this->faker->optional()->randomFloat(2, 2, 25),
+            'speed_mps' => $this->faker->optional()->randomFloat(2, 0, 5),
+            'heading_degrees' => $this->faker->optional()->randomFloat(2, 0, 360),
+            'source' => $this->faker->randomElement(['simulated', 'gps', 'manual', 'api']),
+            'device_identifier' => 'device-'.$this->faker->numerify('###'),
+            'external_event_id' => $this->faker->uuid(),
             'inside_geofence' => $inside,
-            'distance_from_geofence_meters' => $inside ? fake()->numberBetween(0, 80) : fake()->numberBetween(120, 1200),
-            'alert_level' => $inside ? null : fake()->randomElement(['medium', 'high']),
+            'distance_from_geofence_meters' => $inside ? $this->faker->numberBetween(0, 80) : $this->faker->numberBetween(120, 1200),
+            'alert_level' => $inside ? null : $this->faker->randomElement(['medium', 'high']),
             'alert_message' => $inside ? null : 'Worker is outside configured geofence.',
             'meta' => ['seeded' => true],
         ];

@@ -19,7 +19,7 @@ class IncidentCommentFactory extends Factory
         return [
             'incident_id' => Incident::query()->inRandomOrder()->value('id') ?? IncidentFactory::new(),
             'user_id' => User::query()->inRandomOrder()->value('id') ?? User::factory(),
-            'comment' => fake()->sentence(12),
+            'comment' => $this->faker->sentence(12),
         ];
     }
 }

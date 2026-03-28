@@ -18,17 +18,17 @@ class InspectionChecklistFactory extends Factory
     {
         return [
             'offline_uuid' => (string) Str::uuid(),
-            'code' => 'CHK-'.fake()->unique()->numerify('###'),
-            'title' => fake()->randomElement([
+            'code' => 'CHK-'.$this->faker->unique()->numerify('###'),
+            'title' => $this->faker->randomElement([
                 'Daily Safety Walkthrough',
                 'Warehouse Readiness',
                 'Chemical Storage Compliance',
                 'Work Permit Verification',
             ]),
-            'description' => fake()->sentence(10),
+            'description' => $this->faker->sentence(10),
             'title_translations' => null,
             'description_translations' => null,
-            'version' => fake()->numberBetween(1, 3),
+            'version' => $this->faker->numberBetween(1, 3),
             'is_active' => true,
             'sync_status' => 'synced',
             'sync_batch_uuid' => null,

@@ -16,15 +16,15 @@ class SiteAuditApprovalFactory extends Factory
 
     public function definition(): array
     {
-        $decision = fake()->randomElement(['approved', 'rejected']);
+        $decision = $this->faker->randomElement(['approved', 'rejected']);
 
         return [
             'site_audit_id' => SiteAudit::query()->inRandomOrder()->value('id') ?? SiteAuditFactory::new(),
             'approver_id' => User::query()->inRandomOrder()->value('id') ?? User::factory(),
-            'approver_role' => fake()->randomElement(['Manager', 'Safety Officer']),
+            'approver_role' => $this->faker->randomElement(['Manager', 'Safety Officer']),
             'decision' => $decision,
-            'remarks' => fake()->sentence(8),
-            'decided_at' => fake()->dateTimeBetween('-45 days', 'now'),
+            'remarks' => $this->faker->sentence(8),
+            'decided_at' => $this->faker->dateTimeBetween('-45 days', 'now'),
         ];
     }
 }

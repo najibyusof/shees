@@ -17,12 +17,12 @@ class AuditLogFactory extends Factory
     {
         return [
             'user_id' => User::query()->inRandomOrder()->value('id'),
-            'action' => fake()->randomElement(['login', 'create', 'approve', 'reject', 'training_completion']),
-            'module' => fake()->randomElement(['auth', 'incidents', 'audits', 'trainings']),
+            'action' => $this->faker->randomElement(['login', 'create', 'approve', 'reject', 'training_completion']),
+            'module' => $this->faker->randomElement(['auth', 'incidents', 'audits', 'trainings']),
             'auditable_type' => null,
             'auditable_id' => null,
             'metadata' => [
-                'description' => fake()->sentence(8),
+                'description' => $this->faker->sentence(8),
                 'seeded' => true,
             ],
         ];

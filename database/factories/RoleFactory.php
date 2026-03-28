@@ -15,12 +15,12 @@ class RoleFactory extends Factory
 
     public function definition(): array
     {
-        $name = fake()->unique()->jobTitle();
+        $name = $this->faker->unique()->jobTitle();
 
         return [
             'name' => $name,
             'slug' => Str::slug($name),
-            'description' => fake()->sentence(6),
+            'description' => $this->faker->sentence(6),
         ];
     }
 }

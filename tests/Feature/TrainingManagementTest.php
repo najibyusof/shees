@@ -108,7 +108,7 @@ class TrainingManagementTest extends TestCase
             'completed_at' => now(),
         ]);
 
-        $file = UploadedFile::fake()->create('certificate.pdf', 256, 'application/pdf');
+        $file = UploadedFile::$this->faker->create('certificate.pdf', 256, 'application/pdf');
 
         $this->actingAs($actor)
             ->post(route('trainings.upload-certificate', $training), [
