@@ -108,8 +108,11 @@ class DashboardController extends Controller
         $failingDevicesBase = InspectionSyncJob::query()
             ->whereBetween('created_at', [$from, $now])
             ->whereIn('status', ['failed', 'conflict'])
-            ->selectRaw("COALESCE(NULLIF(device_identifier, ''), 'unknown-device') as device")
-            ->select(['status', 'created_at']);
+            ->select([
+                DB::raw("COALESCE(NULLIF(device_identifier, ''), 'unknown-device') as device"),
+                'status',
+                'created_at'
+            ]);
 
         $topFailingDevices = DB::query()
             ->fromSub($failingDevicesBase, 'sync_jobs')

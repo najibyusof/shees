@@ -51,8 +51,8 @@ class ReportService
             $trendRows = (clone $base)
                 ->selectRaw('DATE(created_at) as day_key, COUNT(*) as total')
                 ->where('created_at', '>=', now()->subDays(13)->startOfDay())
-                ->groupByRaw('DATE(created_at)')
-                ->orderByRaw('DATE(created_at) asc')
+                ->groupBy('day_key')
+                ->orderBy('day_key')
                 ->get();
 
             $trend = $this->fillTrendBuckets($trendRows, 14);
@@ -72,8 +72,8 @@ class ReportService
             $trendRows = (clone $base)
                 ->selectRaw('DATE(created_at) as day_key, COUNT(*) as total')
                 ->where('created_at', '>=', now()->subDays(13)->startOfDay())
-                ->groupByRaw('DATE(created_at)')
-                ->orderByRaw('DATE(created_at) asc')
+                ->groupBy('day_key')
+                ->orderBy('day_key')
                 ->get();
 
             $trend = $this->fillTrendBuckets($trendRows, 14);
@@ -93,8 +93,8 @@ class ReportService
             $trendRows = (clone $base)
                 ->selectRaw('DATE(datetime) as day_key, COUNT(*) as total')
                 ->where('datetime', '>=', now()->subDays(13)->startOfDay())
-                ->groupByRaw('DATE(datetime)')
-                ->orderByRaw('DATE(datetime) asc')
+                ->groupBy('day_key')
+                ->orderBy('day_key')
                 ->get();
 
             $trend = $this->fillTrendBuckets($trendRows, 14);
