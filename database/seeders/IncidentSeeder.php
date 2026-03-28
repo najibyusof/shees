@@ -9,7 +9,6 @@ use App\Models\IncidentAttachment;
 use App\Models\IncidentComment;
 use App\Models\User;
 use Database\Seeders\Support\SeedDataGenerator;
-use Database\Factories\IncidentFactory;
 use Illuminate\Database\Seeder;
 
 class IncidentSeeder extends Seeder
@@ -61,12 +60,15 @@ class IncidentSeeder extends Seeder
                 ? ($submittedAt ? (clone $submittedAt)->addHours(random_int(1, 24)) : now())
                 : null;
 
-            $incident = IncidentFactory::new()->create([
+            $incident = Incident::query()->create([
                 'reported_by' => $reporter->id,
                 'submitted_by' => $submittedAt ? $reporter->id : null,
                 'reviewed_by' => $reviewedAt ? $safetyOfficer->id : null,
                 'approved_by' => $status === 'approved' ? $manager->id : null,
                 'rejected_by' => $status === 'rejected' ? $manager->id : null,
+                'description' => $faker->sentence(16),
+                'location' => $faker->randomElement(['Warehouse A', 'Plant 1', 'Boiler Room', 'Loading Dock', 'Chemical Storage']),
+                'classification' => $faker->randomElement(Incident::CLASSIFICATIONS),
                 'status' => $status,
                 'datetime' => $occurredAt,
                 'submitted_at' => $submittedAt,
@@ -160,7 +162,7 @@ class IncidentSeeder extends Seeder
             $approvedAt = (clone $reviewedAt)->addHours(random_int(2, 10));
             $correctiveActionAt = (clone $approvedAt)->addHours(random_int(6, 24));
 
-            $incident = IncidentFactory::new()->create([
+            $incident = Incident::query()->create([
                 'reported_by' => $reporter->id,
                 'submitted_by' => $reporter->id,
                 'reviewed_by' => $safetyOfficer->id,
@@ -172,6 +174,7 @@ class IncidentSeeder extends Seeder
                     'Electrical panel arc flash event',
                 ]),
                 'classification' => 'Critical',
+                'location' => $faker->randomElement(['Warehouse A', 'Plant 1', 'Boiler Room', 'Loading Dock', 'Chemical Storage']),
                 'status' => 'approved',
                 'datetime' => $occurredAt,
                 'submitted_at' => $submittedAt,
@@ -266,7 +269,7 @@ class IncidentSeeder extends Seeder
         $escalatedAt = (clone $escalationSubmittedAt)->addDays(3)->addHours(2);
         $escalationApprovedAt = (clone $escalatedAt)->addHours(10);
 
-        $escalatedIncident = IncidentFactory::new()->create([
+        $escalatedIncident = Incident::query()->create([
             'reported_by' => $escalationReporter->id,
             'submitted_by' => $escalationReporter->id,
             'reviewed_by' => $escalationSafety->id,
@@ -277,6 +280,7 @@ class IncidentSeeder extends Seeder
             'reviewed_at' => $escalatedAt,
             'approved_at' => $escalationApprovedAt,
             'title' => 'Escalation Case: Delayed approval for confined space incident',
+            'location' => $faker->randomElement(['Warehouse A', 'Plant 1', 'Boiler Room', 'Loading Dock', 'Chemical Storage']),
             'classification' => 'Major',
             'description' => 'Approval SLA breached; escalated to manager after 3 days without final approval.',
         ]);

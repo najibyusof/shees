@@ -6,7 +6,6 @@ use App\Models\Certificate;
 use App\Models\Training;
 use App\Models\User;
 use Database\Seeders\Support\SeedDataGenerator;
-use Database\Factories\TrainingFactory;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -27,8 +26,28 @@ class TrainingSeeder extends Seeder
             return;
         }
 
+        $trainingTitles = [
+            'Confined Space Entry',
+            'Hazard Communication',
+            'Fire Safety Drill',
+            'PPE Compliance',
+            'Emergency Response Basics',
+        ];
+
         for ($i = 0; $i < 10; $i++) {
-            $training = TrainingFactory::new()->create();
+            $startsAt = now()->subDays(random_int(5, 40));
+            $endsAt = (clone $startsAt)->addDays(random_int(1, 5));
+
+            $training = Training::query()->create([
+                'title' => $faker->randomElement($trainingTitles).' '.$faker->numerify('##'),
+                'description' => $faker->sentence(14),
+                'title_translations' => null,
+                'description_translations' => null,
+                'starts_at' => $startsAt->toDateString(),
+                'ends_at' => $endsAt->toDateString(),
+                'certificate_validity_days' => $faker->randomElement([90, 180, 365, 730]),
+                'is_active' => true,
+            ]);
             $assignedUsers = $users->random(random_int(5, 10));
             $assignedBy = $users->random();
 
