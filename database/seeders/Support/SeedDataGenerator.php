@@ -25,19 +25,28 @@ class SeedDataGenerator
         return preg_replace_callback('/#/', fn () => (string) random_int(0, 9), $pattern) ?? $pattern;
     }
 
-    public function sentence(int $words = 6, bool $endWithPeriod = true): string
+    /**
+     * @return string|array<int,string>
+     */
+    public function words(int $count = 3, bool $asText = false): string|array
     {
         $pool = [
-            'safety', 'inspection', 'incident', 'training', 'worker', 'compliance', 'control', 'monitor',
-            'audit', 'risk', 'action', 'verification', 'report', 'tracking', 'quality', 'hazard',
+            'safety', 'inspection', 'incident', 'training', 'worker', 'compliance',
+            'control', 'monitor', 'audit', 'risk', 'action', 'verification', 'report',
+            'tracking', 'quality', 'hazard', 'procedure', 'equipment', 'permit', 'zone',
         ];
 
-        $count = max(1, $words);
-        $parts = [];
-        for ($i = 0; $i < $count; $i++) {
-            $parts[] = $this->randomElement($pool);
+        $result = [];
+        for ($i = 0; $i < max(1, $count); $i++) {
+            $result[] = $this->randomElement($pool);
         }
 
+        return $asText ? implode(' ', $result) : $result;
+    }
+
+    public function sentence(int $words = 6, bool $endWithPeriod = true): string
+    {
+        $parts = $this->words($words, false);
         $sentence = ucfirst(implode(' ', $parts));
 
         return $endWithPeriod ? $sentence.'.' : $sentence;
@@ -61,6 +70,17 @@ class SeedDataGenerator
         $last = ['Cruz', 'Reyes', 'Santos', 'Lim', 'Garcia', 'Tan', 'Mendoza', 'Bautista'];
 
         return $this->randomElement($first).' '.$this->randomElement($last);
+    }
+
+    public function jobTitle(): string
+    {
+        $titles = [
+            'Safety Officer', 'Site Supervisor', 'Project Engineer', 'Field Technician',
+            'Quality Inspector', 'Foreman', 'Construction Worker', 'Electrical Engineer',
+            'Civil Engineer', 'Health & Safety Manager', 'Site Manager', 'Operator',
+        ];
+
+        return $this->randomElement($titles);
     }
 
     public function phoneNumber(): string
@@ -101,44 +121,13 @@ class SeedDataGenerator
         return new OptionalSeedDataGenerator($this, $weight);
     }
 }
-    {
-        return random_int(1, 223).'.'.random_int(0, 255).'.'.random_int(0, 255).'.'.random_int(1, 254);
-    }
 
-    public function jobTitle(): string
-    {
-        $titles = [
-            'Safety Officer', 'Site Supervisor', 'Project Engineer', 'Field Technician',
-            'Quality Inspector', 'Foreman', 'Construction Worker', 'Electrical Engineer',
-            'Civil Engineer', 'Health & Safety Manager', 'Site Manager', 'Operator',
-        ];
-
-        return $this->randomElement($titles);
-    }
-
-    /**
-     * @return string|array<int,string>
-     */
-    public function words(int $count = 3, bool $asText = false): string|array
-    {
-        $pool = [
-            'safety', 'inspection', 'incident', 'training', 'worker', 'compliance',
-            'control', 'monitor', 'audit', 'risk', 'action', 'verification', 'report',
-            'tracking', 'quality', 'hazard', 'procedure', 'equipment', 'permit', 'zone',
-        ];
-
-        $result = [];
-        for ($i = 0; $i < max(1, $count); $i++) {
-            $result[] = $this->randomElement($pool);
-        }
-
-        return $asText ? implode(' ', $result) : $result;
-    }
+class OptionalSeedDataGenerator
+{
     public function __construct(
         private readonly SeedDataGenerator $generator,
         private readonly float $weight = 0.5,
-    ) {
-    }
+    ) {}
 
     public function __call(string $method, array $arguments): mixed
     {
