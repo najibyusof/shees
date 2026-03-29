@@ -36,7 +36,7 @@ class ReportingIterationTwoTest extends TestCase
             'module' => 'incidents',
             'date_from' => now()->subDays(7)->toDateString(),
             'date_to' => now()->toDateString(),
-            'status' => 'approved',
+            'status' => 'closed',
         ]);
 
         $response->assertRedirect();

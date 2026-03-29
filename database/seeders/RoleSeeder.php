@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class RoleSeeder extends Seeder
 {
@@ -98,6 +99,40 @@ class RoleSeeder extends Seeder
                 'workers.view',
                 'workers.track',
             ],
+
+            // -- Incident workflow roles --
+            // HOD HSSE: reviews submitted drafts, submits final, initiates closure
+            'HOD HSSE' => [
+                'dashboard.view',
+                'reports.view',
+                'audits.view',
+                'incidents.submit',
+                'incidents.approve',
+                'incidents.comment',
+                'workers.view',
+            ],
+
+            // APSB PD: co-approves final submission alongside HOD HSSE
+            'APSB PD' => [
+                'dashboard.view',
+                'reports.view',
+                'audits.view',
+                'incidents.submit',
+                'incidents.approve',
+                'incidents.comment',
+                'workers.view',
+            ],
+
+            // MRTS: reviews final submission and closes the incident
+            'MRTS' => [
+                'dashboard.view',
+                'reports.view',
+                'audits.view',
+                'incidents.submit',
+                'incidents.approve',
+                'incidents.comment',
+                'workers.view',
+            ],
         ];
 
         $allPermissions = collect($rolePermissions)
@@ -115,7 +150,10 @@ class RoleSeeder extends Seeder
         foreach ($rolePermissions as $roleName => $permissions) {
             $role = Role::query()->firstOrCreate(
                 ['name' => $roleName],
-                ['description' => $roleName.' role']
+                [
+                    'slug' => Str::slug($roleName),
+                    'description' => $roleName.' role',
+                ]
             );
 
             $permissionIds = Permission::query()

@@ -170,6 +170,140 @@ class DashboardController extends Controller
         $cleanupStatus = Cache::get('audit_logs_cleanup_status');
         $cleanupStatus = is_array($cleanupStatus) ? $cleanupStatus : null;
 
+        $incidentTrendDays = 30;
+        $incidentTrendStart = $now->copy()->subDays($incidentTrendDays - 1)->startOfDay();
+        $incidentTrendEnd = $now->copy()->endOfDay();
+
+        $incidentBuckets = [];
+        $incidentCursor = $incidentTrendStart->copy();
+        while ($incidentCursor->lte($incidentTrendEnd)) {
+            $key = $incidentCursor->toDateString();
+            $incidentBuckets[$key] = [
+                'date' => $key,
+                'label' => $incidentCursor->format('M d'),
+                'count' => 0,
+                'resolved' => 0,
+                'unresolved' => 0,
+            ];
+            $incidentCursor->addDay();
+        }
+
+        $incidentRows = Incident::query()
+            ->whereBetween('created_at', [$incidentTrendStart, $incidentTrendEnd])
+            ->select(['created_at', 'status'])
+            ->get();
+
+        foreach ($incidentRows as $row) {
+            if (! $row->created_at) {
+                continue;
+            }
+
+            $key = $row->created_at->toDateString();
+            if (! isset($incidentBuckets[$key])) {
+                continue;
+            }
+
+            $incidentBuckets[$key]['count']++;
+            if ((string) $row->status === 'closed') {
+                $incidentBuckets[$key]['resolved']++;
+            } else {
+                $incidentBuckets[$key]['unresolved']++;
+            }
+        }
+
+        $incidentTrend = collect($incidentBuckets)->values()->all();
+        $incidentTotal = collect($incidentTrend)->sum('count');
+        $incidentPeak = collect($incidentTrend)->max('count') ?? 0;
+
+        $incidentStatusMix = Incident::query()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->orderByDesc('total')
+            ->limit(4)
+            ->get()
+            ->map(fn ($row) => [
+                'status' => (string) $row->status,
+                'label' => ucfirst(str_replace('_', ' ', (string) $row->status)),
+                'total' => (int) $row->total,
+            ])
+            ->values()
+            ->all();
+
+        $incidentClassificationMix = Incident::query()
+            ->selectRaw("COALESCE(NULLIF(classification, ''), 'Unclassified') as classification, COUNT(*) as total")
+            ->groupBy('classification')
+            ->orderByDesc('total')
+            ->limit(6)
+            ->get()
+            ->map(fn ($row) => [
+                'classification' => (string) $row->classification,
+                'total' => (int) $row->total,
+            ])
+            ->values()
+            ->all();
+
+        $incidentClosedMonths = 6;
+        $incidentClosedStart = $now->copy()->subMonths($incidentClosedMonths - 1)->startOfMonth();
+
+        $incidentClosedBuckets = [];
+        $incidentClosedCursor = $incidentClosedStart->copy();
+        while ($incidentClosedCursor->lte($now)) {
+            $monthKey = $incidentClosedCursor->format('Y-m');
+            $incidentClosedBuckets[$monthKey] = [
+                'month' => $monthKey,
+                'label' => $incidentClosedCursor->format('M'),
+                'count' => 0,
+            ];
+            $incidentClosedCursor->addMonth();
+        }
+
+        $incidentClosedRows = Incident::query()
+            ->where('status', 'closed')
+            ->whereBetween('updated_at', [$incidentClosedStart, $now])
+            ->get(['updated_at']);
+
+        foreach ($incidentClosedRows as $row) {
+            if (! $row->updated_at) {
+                continue;
+            }
+
+            $monthKey = $row->updated_at->format('Y-m');
+            if (! isset($incidentClosedBuckets[$monthKey])) {
+                continue;
+            }
+
+            $incidentClosedBuckets[$monthKey]['count']++;
+        }
+
+        $incidentClosedMonthly = collect($incidentClosedBuckets)->values()->all();
+
+        $closedTotal = Incident::query()->where('status', 'closed')->count();
+        $openTotal = Incident::query()->where('status', '!=', 'closed')->count();
+        $resolutionRate = ($closedTotal + $openTotal) > 0
+            ? round(($closedTotal / ($closedTotal + $openTotal)) * 100, 1)
+            : 0.0;
+
+        $recentClosedRows = Incident::query()
+            ->where('status', 'closed')
+            ->whereNotNull('created_at')
+            ->whereNotNull('updated_at')
+            ->latest('updated_at')
+            ->limit(300)
+            ->get(['created_at', 'updated_at']);
+
+        $resolutionHours = $recentClosedRows
+            ->map(function ($incident) {
+                if (! $incident->created_at || ! $incident->updated_at) {
+                    return null;
+                }
+
+                return max(0, $incident->updated_at->diffInHours($incident->created_at));
+            })
+            ->filter(fn ($hours) => $hours !== null)
+            ->values();
+
+        $avgResolutionHours = $resolutionHours->isNotEmpty() ? round((float) $resolutionHours->avg(), 1) : 0.0;
+
         $stats = [
             'kpis' => [
                 'incidents' => Incident::query()->count(),
@@ -241,6 +375,23 @@ class DashboardController extends Controller
                 'max_latency_ms' => $latency?->max_latency_ms !== null ? (int) $latency->max_latency_ms : null,
                 'trend' => $trend,
                 'top_failing_devices' => $topFailingDevices,
+            ],
+            'incidentTelemetry' => [
+                'window_label' => 'Last ' . $incidentTrendDays . ' Days',
+                'trend' => $incidentTrend,
+                'total' => $incidentTotal,
+                'peak' => $incidentPeak,
+                'avg_daily' => $incidentTrendDays > 0 ? round($incidentTotal / $incidentTrendDays, 1) : 0,
+                'status_mix' => $incidentStatusMix,
+                'classification_mix' => $incidentClassificationMix,
+                'closed_monthly' => $incidentClosedMonthly,
+                'closed_window_label' => 'Last ' . $incidentClosedMonths . ' Months',
+                'summary' => [
+                    'open' => $openTotal,
+                    'resolved' => $closedTotal,
+                    'resolution_rate' => $resolutionRate,
+                    'avg_resolution_hours' => $avgResolutionHours,
+                ],
             ],
             'recentActivity' => AuditLog::query()
                 ->latest('created_at')

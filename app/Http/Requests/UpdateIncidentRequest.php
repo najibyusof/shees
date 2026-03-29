@@ -3,6 +3,8 @@
 namespace App\Http\Requests;
 
 use App\Models\Incident;
+use App\Support\IncidentRules;
+use Carbon\Carbon;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -25,16 +27,29 @@ class UpdateIncidentRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['required', 'string'],
-            'location' => ['required', 'string', 'max:255'],
-            'datetime' => ['required', 'date'],
-            'classification' => ['required', 'string', 'in:'.implode(',', Incident::CLASSIFICATIONS)],
-            'attachments' => ['nullable', 'array', 'max:10'],
-            'attachments.*' => ['file', 'max:10240', 'mimes:jpg,jpeg,png,gif,webp,pdf,doc,docx'],
-            'remove_attachment_ids' => ['nullable', 'array'],
-            'remove_attachment_ids.*' => ['integer', 'exists:incident_attachments,id'],
-        ];
+        return IncidentRules::fullPayload();
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $date = $this->input('incident_date');
+        $time = $this->input('incident_time');
+        $dateTime = $this->input('datetime');
+
+        if ((! $date || ! $time) && filled($dateTime)) {
+            try {
+                $parsed = Carbon::parse((string) $dateTime);
+                $date ??= $parsed->toDateString();
+                $time ??= $parsed->format('H:i');
+            } catch (\Throwable) {
+            }
+        }
+
+        $this->merge([
+            'incident_description' => $this->input('incident_description', $this->input('description')),
+            'other_location' => $this->input('other_location', $this->input('location')),
+            'incident_date' => $date,
+            'incident_time' => $time,
+        ]);
     }
 }

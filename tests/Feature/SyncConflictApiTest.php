@@ -3,12 +3,19 @@
 namespace Tests\Feature;
 
 use App\Models\Incident;
+use App\Models\IncidentClassification;
+use App\Models\IncidentLocation;
+use App\Models\IncidentType;
 use App\Models\Inspection;
 use App\Models\InspectionChecklist;
+use App\Models\LocationType;
 use App\Models\NcrReport;
 use App\Models\SiteAudit;
+use App\Models\Subcontractor;
 use App\Models\User;
 use App\Models\Worker;
+use App\Models\WorkActivity;
+use App\Models\WorkPackage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -51,7 +58,7 @@ class SyncConflictApiTest extends TestCase
         $serverUpdatedAt = Carbon::now()->subMinutes(8)->startOfSecond();
         $localUpdatedAt = Carbon::now()->subMinutes(2)->startOfSecond();
 
-        $incident = Incident::query()->create([
+        $incident = Incident::query()->create($this->requiredIncidentAttributes($user, [
             'reported_by' => $user->id,
             'title' => 'Server Title',
             'description' => 'Server description',
@@ -61,7 +68,7 @@ class SyncConflictApiTest extends TestCase
             'status' => 'draft',
             'temporary_id' => $temporaryId,
             'local_created_at' => $lastSyncedAt->copy()->subDay(),
-        ]);
+        ]));
 
         DB::table('incidents')->where('id', $incident->id)->update([
             'updated_at' => $serverUpdatedAt,
@@ -117,7 +124,7 @@ class SyncConflictApiTest extends TestCase
         $serverUpdatedAt = Carbon::now()->subMinute()->startOfSecond();
         $localUpdatedAt = Carbon::now()->subMinutes(5)->startOfSecond();
 
-        $incident = Incident::query()->create([
+        $incident = Incident::query()->create($this->requiredIncidentAttributes($user, [
             'reported_by' => $user->id,
             'title' => 'Server Version Survives',
             'description' => 'Server update',
@@ -127,7 +134,7 @@ class SyncConflictApiTest extends TestCase
             'status' => 'draft',
             'temporary_id' => $temporaryId,
             'local_created_at' => $lastSyncedAt->copy()->subDay(),
-        ]);
+        ]));
 
         DB::table('incidents')->where('id', $incident->id)->update([
             'updated_at' => $serverUpdatedAt,
@@ -180,7 +187,7 @@ class SyncConflictApiTest extends TestCase
         $serverUpdatedAt = Carbon::now()->subMinutes(9)->startOfSecond();
         $localUpdatedAt = Carbon::now()->subMinutes(1)->startOfSecond();
 
-        $incident = Incident::query()->create([
+        $incident = Incident::query()->create($this->requiredIncidentAttributes($user, [
             'reported_by' => $user->id,
             'title' => 'Needs Review',
             'description' => 'Server change exists',
@@ -190,7 +197,7 @@ class SyncConflictApiTest extends TestCase
             'status' => 'draft',
             'temporary_id' => $temporaryId,
             'local_created_at' => $lastSyncedAt->copy()->subDay(),
-        ]);
+        ]));
 
         DB::table('incidents')->where('id', $incident->id)->update([
             'updated_at' => $serverUpdatedAt,
@@ -502,5 +509,69 @@ class SyncConflictApiTest extends TestCase
             'status' => 'submitted',
             'sync_status' => 'synced',
         ]);
+    }
+
+    private function requiredIncidentAttributes(User $reporter, array $overrides = []): array
+    {
+        $locationType = LocationType::query()->firstOrCreate(
+            ['code' => 'LT-TST'],
+            ['name' => 'Test Location Type', 'is_active' => true]
+        );
+
+        $location = IncidentLocation::query()->firstOrCreate(
+            ['code' => 'LOC-TST'],
+            ['name' => 'Test Location', 'location_type_id' => $locationType->id, 'is_active' => true]
+        );
+
+        if ((int) $location->location_type_id !== (int) $locationType->id) {
+            $location->update(['location_type_id' => $locationType->id]);
+        }
+
+        $incidentType = IncidentType::query()->firstOrCreate(
+            ['code' => 'IT-TST'],
+            ['name' => 'Test Incident Type', 'is_active' => true]
+        );
+
+        $classification = IncidentClassification::query()->firstOrCreate(
+            ['code' => 'IC-TST'],
+            ['name' => 'Test Classification', 'is_active' => true]
+        );
+
+        $workPackage = WorkPackage::query()->firstOrCreate(
+            ['code' => 'WP-TST'],
+            ['name' => 'Test Work Package', 'is_active' => true]
+        );
+
+        $workActivity = WorkActivity::query()->firstOrCreate(
+            ['code' => 'WA-TST'],
+            ['name' => 'Test Work Activity', 'is_active' => true]
+        );
+
+        $subcontractor = Subcontractor::query()->first();
+
+        return array_merge([
+            'reported_by' => $reporter->id,
+            'incident_reference_number' => 'INC-TST-'.Str::upper(Str::random(8)),
+            'title' => 'Test Incident',
+            'description' => 'Test incident description.',
+            'incident_description' => 'Test incident description.',
+            'incident_type_id' => $incidentType->id,
+            'location_type_id' => $locationType->id,
+            'location_id' => $location->id,
+            'location' => $location->name,
+            'other_location' => $location->name,
+            'datetime' => now(),
+            'incident_date' => now()->toDateString(),
+            'incident_time' => now()->format('H:i:s'),
+            'classification' => 'Major',
+            'classification_id' => $classification->id,
+            'status' => 'draft',
+            'work_package_id' => $workPackage->id,
+            'work_activity_id' => $workActivity->id,
+            'immediate_response' => 'Immediate response executed.',
+            'subcontractor_id' => $subcontractor?->id,
+            'person_in_charge' => 'Test PIC',
+            'subcontractor_contact_number' => '+60123456789',
+        ], $overrides);
     }
 }

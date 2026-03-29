@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="light">
 
 <head>
     <meta charset="utf-8">
@@ -13,8 +13,7 @@
     <script>
         (function() {
             const storedTheme = localStorage.getItem('theme');
-            const preferredTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            const activeTheme = storedTheme || preferredTheme;
+            const activeTheme = storedTheme === 'dark' || storedTheme === 'light' ? storedTheme : 'light';
 
             document.documentElement.setAttribute('data-theme', activeTheme);
             document.documentElement.classList.toggle('dark', activeTheme === 'dark');
@@ -34,7 +33,7 @@
         }
     }">
         <div
-            class="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,_rgba(15,118,110,0.18),_transparent_42%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.18),_transparent_48%)] dark:bg-[radial-gradient(circle_at_top_left,_rgba(20,184,166,0.22),_transparent_45%),radial-gradient(circle_at_bottom_right,_rgba(8,145,178,0.2),_transparent_48%)]">
+            class="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(180deg,#f7fafc_0%,#f2f5f8_100%)] dark:bg-[linear-gradient(180deg,#0b1220_0%,#111827_100%)]">
         </div>
 
         <x-layout.navbar />
@@ -46,33 +45,31 @@
             x-transition:enter-start="-translate-x-full" x-transition:enter-end="translate-x-0"
             x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0"
             x-transition:leave-end="-translate-x-full"
-            class="fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto border-r border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900 lg:hidden">
+            class="fixed inset-y-0 left-0 z-50 w-72 overflow-y-auto p-4 lg:hidden">
             <x-layout.sidebar />
         </aside>
 
-        <div class="mx-auto flex w-full max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
-            <aside class="hidden w-64 shrink-0 lg:block">
+        <div class="mx-auto flex w-full max-w-[1500px] gap-6 px-4 py-6 sm:px-6 lg:px-8">
+            <aside class="hidden w-72 shrink-0 lg:block">
                 <x-layout.sidebar />
             </aside>
 
             <main class="min-w-0 flex-1">
                 @if (isset($header))
-                    <div class="mb-6 rounded-2xl border ui-border ui-surface p-5 shadow-sm">
+                    <div class="mb-6">
                         {{ $header }}
                     </div>
                 @elseif (View::hasSection('header'))
-                    <div class="mb-6 rounded-2xl border ui-border ui-surface p-5 shadow-sm">
+                    <div class="mb-6">
                         @yield('header')
                     </div>
                 @endif
 
-                <div class="rounded-2xl border ui-border ui-surface p-6 shadow-sm sm:p-7">
-                    @isset($slot)
-                        {{ $slot }}
-                    @else
-                        @yield('content')
-                    @endisset
-                </div>
+                @isset($slot)
+                    {{ $slot }}
+                @else
+                    @yield('content')
+                @endisset
             </main>
         </div>
 

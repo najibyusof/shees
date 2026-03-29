@@ -81,25 +81,61 @@ npm run build
 
 ## Authentication
 
-API authentication uses Bearer tokens. Typical login flow:
+API authentication uses Bearer tokens. All protected routes require `Authorization: Bearer <token>`.
 
 ```bash
-curl -X POST http://localhost/api/auth/login \
+curl -X POST http://localhost/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-	 "email": "user@example.com",
-	 "password": "password123",
-	 "device_name": "local-dev"
+    "email": "user@example.com",
+    "password": "password123",
+    "device_name": "local-dev"
   }'
 ```
 
-Use the returned token in the `Authorization: Bearer <token>` header for protected routes.
+The response contains a `token` field. Pass it as `Authorization: Bearer <token>` on every subsequent request.
+
+## API Modules
+
+All V1 routes are prefixed `/api/v1/` and protected by `mobile.token` middleware (except login).
+
+| Module      | Base path             | Notes                                |
+| ----------- | --------------------- | ------------------------------------ |
+| Auth        | `/api/v1/auth/`       | Login, logout, current user          |
+| Incidents   | `/api/v1/incidents`   | Full CRUD + workflow pipeline        |
+| Trainings   | `/api/v1/trainings`   | Training record CRUD                 |
+| Inspections | `/api/v1/inspections` | Inspection CRUD                      |
+| Site Audits | `/api/v1/audits`      | Audit CRUD                           |
+| NCR Reports | `/api/v1/ncr`         | Non-conformance report CRUD          |
+| Workers     | `/api/v1/workers`     | Worker CRUD + attendance logging     |
+| Users       | `/api/v1/users`       | User listing                         |
+| Device      | `/api/v1/device/`     | Device registration / deregistration |
+| Sync        | `/api/v1/sync`        | General offline sync                 |
+
+### Incident workflow endpoints
+
+Beyond standard CRUD, incidents have a comment-driven approval pipeline:
+
+| Method  | Path                                         | Description                            |
+| ------- | -------------------------------------------- | -------------------------------------- |
+| `GET`   | `/api/v1/incidents/{id}/allowed-transitions` | States the incident can move to        |
+| `POST`  | `/api/v1/incidents/{id}/transition`          | Advance or reject the incident         |
+| `POST`  | `/api/v1/incidents/{id}/comments`            | Add a comment (supports `is_critical`) |
+| `POST`  | `/api/v1/comments/{id}/reply`                | Reply to a comment                     |
+| `PATCH` | `/api/v1/comments/{id}/resolve`              | Resolve or un-resolve a comment        |
+
+Workflow statuses: `draft` → `draft_submitted` → `draft_reviewed` → `final_submitted` → `final_reviewed` → `pending_closure` → `closed`.
+
+See `API_QUICK_REFERENCE.md` for full request/response shapes.
 
 ## Offline Sync
 
-The platform includes sync endpoints intended for mobile or intermittently connected clients. Sync requests support device identity, conflict strategy selection, and reconciliation of locally created records after reconnect.
+The platform supports offline-first mobile clients. Sync requests carry device identity, a conflict resolution strategy, and locally buffered records.
 
-See `POST /api/sync` and the inspection sync contract in `docs/inspection-mobile-api.md` for request and response details.
+- General sync: `POST /api/v1/sync`
+- Inspection-specific sync (upload, acknowledge, conflict): `POST /api/v1/inspection/sync/upload` — see `docs/inspection-mobile-api.md`
+
+Records created offline should include a `temporary_id` (UUID) and `local_created_at` timestamp so the server can reconcile them after reconnect.
 
 ## Testing
 
@@ -110,6 +146,61 @@ php artisan test
 ```
 
 If you are changing API behavior, regenerate Swagger output and verify the affected routes in Swagger UI.
+
+### Factory Scenario Recipes
+
+The test factories now include reusable scenario states for audit/NCR workflows.
+
+NCR examples:
+
+```php
+use App\Models\NcrReport;
+
+// High-severity open NCR
+$ncr = NcrReport::factory()->highSeverityOpen()->create();
+
+// Overdue NCR still open
+$overdueNcr = NcrReport::factory()->overdueOpen()->create();
+
+// NCR waiting verification
+$pendingVerificationNcr = NcrReport::factory()->pendingVerification()->create();
+
+// Closed NCR with verification/closure timestamps
+$closedNcr = NcrReport::factory()->closed()->create();
+```
+
+Corrective action examples:
+
+```php
+use App\Models\CorrectiveAction;
+
+// Lifecycle states
+$openAction = CorrectiveAction::factory()->open()->create();
+$inProgressAction = CorrectiveAction::factory()->inProgress()->create();
+$overdueAction = CorrectiveAction::factory()->overdue()->create();
+$completedAction = CorrectiveAction::factory()->completed()->create();
+$verifiedAction = CorrectiveAction::factory()->verified()->create();
+```
+
+Composed example (audit -> ncr -> corrective action):
+
+```php
+use App\Models\CorrectiveAction;
+use App\Models\NcrReport;
+use App\Models\SiteAudit;
+
+$audit = SiteAudit::factory()->create();
+
+$ncr = NcrReport::factory()
+    ->for($audit)
+    ->highSeverityOpen()
+    ->create();
+
+$action = CorrectiveAction::factory()
+    ->for($ncr)
+    ->overdue()
+    ->create();
+```
 
 ## Repository Notes
 

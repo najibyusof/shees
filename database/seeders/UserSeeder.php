@@ -46,6 +46,22 @@ class UserSeeder extends Seeder
                 ['name' => 'Lara Stone', 'email' => 'lara.stone@shees.local'],
                 ['name' => 'Pablo Ortiz', 'email' => 'pablo.ortiz@shees.local'],
             ],
+
+                // ── Incident workflow roles ──────────────────────────────────
+                'HOD HSSE' => [
+                    ['name' => 'Fatima Al-Rashid', 'email' => 'fatima.alrashid@shees.local'],
+                    ['name' => 'Raymond Ong', 'email' => 'raymond.ong@shees.local'],
+                ],
+
+                'APSB PD' => [
+                    ['name' => 'Samuel Adeyemi', 'email' => 'samuel.adeyemi@shees.local'],
+                    ['name' => 'Claudia Ng', 'email' => 'claudia.ng@shees.local'],
+                ],
+
+                'MRTS' => [
+                    ['name' => 'Jonathan Bautista', 'email' => 'jonathan.bautista@shees.local'],
+                    ['name' => 'Mei Ling Tan', 'email' => 'meling.tan@shees.local'],
+                ],
         ];
 
         foreach ($roleUserBlueprint as $roleName => $users) {

@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\IncidentWorkflowSettingsController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\AuthorizationExampleController;
 use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\InspectionChecklistController;
 use App\Http\Controllers\InspectionController;
@@ -108,6 +110,7 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('/admin/users')->name('admin.users')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('');
+        Route::post('/preferences', [AuthorizationExampleController::class, 'updateUsersPreferences'])->name('.preferences');
         Route::post('/bulk-action', [UserController::class, 'bulkAction'])->name('.bulk-action');
         Route::get('/create', [UserController::class, 'create'])->name('.create');
         Route::post('/', [UserController::class, 'store'])->name('.store');
@@ -129,6 +132,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/{role}/export/{format}', [RoleController::class, 'export'])->whereIn('format', ['csv', 'pdf'])->name('.export');
     });
 
+    Route::prefix('/admin/settings')->name('admin.settings')->middleware('role:Admin')->group(function () {
+        Route::get('/incident-workflow', [IncidentWorkflowSettingsController::class, 'show'])->name('.incident-workflow');
+        Route::patch('/incident-workflow', [IncidentWorkflowSettingsController::class, 'update'])->name('.incident-workflow.update');
+    });
+
     Route::get('/audit/logs', [AuditLogController::class, 'index'])
         ->middleware(['permission:audits.view'])
         ->name('audit.logs');
@@ -140,17 +148,23 @@ Route::middleware('auth')->group(function () {
     Route::post('/incidents/bulk-action', [IncidentController::class, 'bulkAction'])
         ->name('incidents.bulk-action');
 
+    Route::post('/incidents/autosave', [IncidentController::class, 'autosave'])
+        ->name('incidents.autosave');
+
+    Route::post('/incidents/{incident}/autosave', [IncidentController::class, 'autosave'])
+        ->name('incidents.autosave.update');
+
     Route::resource('incidents', IncidentController::class)
         ->only(['index', 'show', 'create', 'store', 'edit', 'update']);
 
-    Route::post('/incidents/{incident}/submit', [IncidentController::class, 'submit'])
-        ->name('incidents.submit');
-    Route::post('/incidents/{incident}/approve', [IncidentController::class, 'approve'])
-        ->name('incidents.approve');
-    Route::post('/incidents/{incident}/reject', [IncidentController::class, 'reject'])
-        ->name('incidents.reject');
+    Route::post('/incidents/{incident}/transition', [IncidentController::class, 'transition'])
+        ->name('incidents.transition');
     Route::post('/incidents/{incident}/comment', [IncidentController::class, 'comment'])
         ->name('incidents.comment');
+    Route::post('/incidents/{incident}/comment/{comment}/reply', [IncidentController::class, 'reply'])
+        ->name('incidents.comment.reply');
+    Route::patch('/incidents/{incident}/comment/{comment}/resolve', [IncidentController::class, 'resolveComment'])
+        ->name('incidents.comment.resolve');
 
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])
         ->name('notifications.read-all');

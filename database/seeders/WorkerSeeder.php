@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Worker;
 use Database\Seeders\Support\SeedDataGenerator;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class WorkerSeeder extends Seeder
 {
@@ -75,6 +76,8 @@ class WorkerSeeder extends Seeder
                 'alert_level' => null,
                 'alert_message' => null,
                 'meta' => ['seeded' => true],
+                    'temporary_id' => (string) Str::uuid(),
+                    'local_created_at' => (clone $baseDate)->subMinutes(5),
             ]);
             $latestLogAt = $baseDate;
 
@@ -100,6 +103,8 @@ class WorkerSeeder extends Seeder
                     'alert_level' => $inside ? null : $faker->randomElement(['medium', 'high']),
                     'alert_message' => $inside ? null : 'Worker outside geofence boundary.',
                     'meta' => ['seeded' => true],
+                    'temporary_id' => (string) Str::uuid(),
+                    'local_created_at' => (clone $loggedAt)->subMinutes(2),
                 ]);
 
                 $latestLogAt = $loggedAt;
@@ -126,9 +131,73 @@ class WorkerSeeder extends Seeder
                     'alert_level' => null,
                     'alert_message' => null,
                     'meta' => ['seeded' => true],
+                    'temporary_id' => (string) Str::uuid(),
+                    'local_created_at' => (clone $checkoutAt)->subMinutes(2),
                 ]);
 
                 $latestLogAt = $checkoutAt;
+            }
+
+            $worker->update([
+                'last_latitude' => $faker->latitude(14.4, 14.8),
+                'last_longitude' => $faker->longitude(120.8, 121.2),
+                'last_seen_at' => $latestLogAt,
+            ]);
+        }
+
+        // Scenario set: 3 high-risk workers with repeated geofence breaches.
+        for ($i = 1; $i <= 3; $i++) {
+            $employeeCode = 'WK-RISK-'.str_pad((string) $i, 3, '0', STR_PAD_LEFT);
+            if (Worker::query()->where('employee_code', $employeeCode)->exists()) {
+                continue;
+            }
+
+            $worker = Worker::query()->create([
+                'user_id' => $workerUsers->isNotEmpty() ? $workerUsers->random()->id : null,
+                'employee_code' => $employeeCode,
+                'full_name' => $faker->name(),
+                'phone' => $faker->phoneNumber(),
+                'department' => 'Operations',
+                'position' => 'Field Technician',
+                'status' => 'active',
+                'geofence_center_latitude' => $faker->latitude(14.4, 14.8),
+                'geofence_center_longitude' => $faker->longitude(120.8, 121.2),
+                'geofence_radius_meters' => random_int(70, 100),
+                'last_latitude' => null,
+                'last_longitude' => null,
+                'last_seen_at' => null,
+            ]);
+
+            $start = now()->subDays(random_int(1, 5))->startOfDay()->addHours(8);
+            $latestLogAt = $start;
+
+            for ($j = 0; $j < 8; $j++) {
+                $loggedAt = (clone $start)->addMinutes($j * 45);
+                $inside = $j < 2 ? true : random_int(1, 100) <= 35;
+
+                AttendanceLog::query()->create([
+                    'worker_id' => $worker->id,
+                    'recorded_by' => $recorders->random()->id,
+                    'event_type' => $j === 0 ? 'check_in' : 'ping',
+                    'logged_at' => $loggedAt,
+                    'latitude' => $faker->latitude(14.4, 14.8),
+                    'longitude' => $faker->longitude(120.8, 121.2),
+                    'accuracy_meters' => random_int(5, 20),
+                    'speed_mps' => $faker->randomFloat(2, 0, 3),
+                    'heading_degrees' => $faker->optional()->randomFloat(2, 0, 360),
+                    'source' => 'simulated',
+                    'device_identifier' => 'risk-worker-device-'.$faker->numerify('###'),
+                    'external_event_id' => $faker->uuid(),
+                    'inside_geofence' => $inside,
+                    'distance_from_geofence_meters' => $inside ? random_int(1, 60) : random_int(150, 1200),
+                    'alert_level' => $inside ? null : $faker->randomElement(['high', 'critical']),
+                    'alert_message' => $inside ? null : 'Repeated geofence breach detected.',
+                    'meta' => ['seeded' => true, 'scenario' => 'high_risk_geofence_worker'],
+                    'temporary_id' => (string) Str::uuid(),
+                    'local_created_at' => (clone $loggedAt)->subMinutes(1),
+                ]);
+
+                $latestLogAt = $loggedAt;
             }
 
             $worker->update([

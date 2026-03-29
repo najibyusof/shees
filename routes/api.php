@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\AuditApiController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\IncidentApiController;
+use App\Http\Controllers\Api\V1\IncidentWorkflowApiController;
 use App\Http\Controllers\Api\V1\InspectionApiController;
 use App\Http\Controllers\Api\V1\NcrApiController;
 use App\Http\Controllers\Api\V1\SyncController;
@@ -57,6 +58,18 @@ Route::prefix('v1')->group(function () {
         // --- Incidents ----------------------------------------------------
         Route::apiResource('incidents', IncidentApiController::class)
             ->names('api.v1.incidents');
+
+        // --- Incident Workflow (collaborative, comment-driven) ------------
+        Route::post('incidents/{incident}/transition', [IncidentWorkflowApiController::class, 'transition'])
+            ->name('api.v1.incidents.transition');
+        Route::post('incidents/{incident}/comments', [IncidentWorkflowApiController::class, 'storeComment'])
+            ->name('api.v1.incidents.comments.store');
+        Route::get('incidents/{incident}/allowed-transitions', [IncidentWorkflowApiController::class, 'allowedTransitions'])
+            ->name('api.v1.incidents.transitions.index');
+        Route::post('comments/{comment}/reply', [IncidentWorkflowApiController::class, 'storeReply'])
+            ->name('api.v1.comments.reply');
+        Route::patch('comments/{comment}/resolve', [IncidentWorkflowApiController::class, 'resolveComment'])
+            ->name('api.v1.comments.resolve');
 
         // --- Trainings ----------------------------------------------------
         Route::apiResource('trainings', TrainingApiController::class)

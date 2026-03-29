@@ -82,43 +82,66 @@
                     'permission' => 'audits.view',
                     'icon' => 'audit',
                 ],
+                [
+                    'title' => 'Workflow Settings',
+                    'route' => 'admin.settings.incident-workflow',
+                    'active_pattern' => 'admin.settings*',
+                    'roles' => ['Admin'],
+                    'icon' => 'checklist',
+                ],
             ],
         ],
     ];
 @endphp
 
-<div class="rounded-xl border ui-border ui-surface p-4 shadow-sm">
-    @foreach ($menu as $section)
-        <p class="mb-3 text-xs font-semibold uppercase tracking-wider ui-text-muted">{{ $section['label'] }}</p>
+<div class="flex min-h-[calc(100vh-7.5rem)] flex-col rounded-2xl ui-sidebar-bg p-4 shadow-xl shadow-teal-950/20">
+    <div class="mb-5 rounded-xl ui-sidebar-surface px-3 py-3">
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] ui-sidebar-muted">ISRMS</p>
+        <p class="mt-1 text-sm font-semibold ui-sidebar-text">Safety Management</p>
+    </div>
 
-        <ul class="mb-5 space-y-1 last:mb-0">
-            @foreach ($section['items'] as $item)
-                @php
-                    $visible = true;
+    <div class="flex-1 overflow-y-auto pr-1">
+        @foreach ($menu as $section)
+            <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] ui-sidebar-muted">
+                {{ $section['label'] }}</p>
 
-                    if (isset($item['roles'])) {
-                        $visible = $user && $user->hasAnyRole($item['roles']);
-                    }
+            <ul class="mb-5 space-y-1 last:mb-0">
+                @foreach ($section['items'] as $item)
+                    @php
+                        $visible = true;
 
-                    if ($visible && isset($item['permission'])) {
-                        $visible = $user && $user->hasPermissionTo($item['permission']);
-                    }
+                        if (isset($item['roles'])) {
+                            $visible = $user && $user->hasAnyRole($item['roles']);
+                        }
 
-                    $isActive = isset($item['active_pattern'])
-                        ? request()->routeIs($item['active_pattern'])
-                        : request()->routeIs($item['route']);
-                @endphp
+                        if ($visible && isset($item['permission'])) {
+                            $visible = $user && $user->hasPermissionTo($item['permission']);
+                        }
 
-                @if ($visible)
-                    <li>
-                        <a href="{{ route($item['route']) }}"
-                            class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition {{ $isActive ? 'bg-slate-900 text-white dark:bg-gray-700 dark:text-gray-100' : 'ui-text-muted hover:ui-surface-soft hover:ui-text' }}">
-                            <x-ui.icon :name="$item['icon'] ?? 'circle'" class="h-4 w-4" />
-                            <span>{{ $item['title'] }}</span>
-                        </a>
-                    </li>
-                @endif
-            @endforeach
-        </ul>
-    @endforeach
+                        $isActive = isset($item['active_pattern'])
+                            ? request()->routeIs($item['active_pattern'])
+                            : request()->routeIs($item['route']);
+                    @endphp
+
+                    @if ($visible)
+                        <li>
+                            <a href="{{ route($item['route']) }}"
+                                class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition {{ $isActive ? 'ui-sidebar-active ui-sidebar-text shadow-sm shadow-black/10' : 'ui-sidebar-muted hover:bg-white/10 hover:text-white' }}">
+                                <x-ui.icon :name="$item['icon'] ?? 'circle'" class="h-4 w-4" />
+                                <span>{{ $item['title'] }}</span>
+                            </a>
+                        </li>
+                    @endif
+                @endforeach
+            </ul>
+        @endforeach
+    </div>
+
+    @if ($user)
+        <div class="mt-4 rounded-xl ui-sidebar-surface px-3 py-3">
+            <p class="text-xs font-semibold ui-sidebar-text">{{ $user->name }}</p>
+            <p class="text-[11px] uppercase tracking-[0.14em] ui-sidebar-muted">
+                {{ $user->getRoleNames()->first() ?? 'User' }}</p>
+        </div>
+    @endif
 </div>

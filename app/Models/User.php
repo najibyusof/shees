@@ -169,11 +169,53 @@ class User extends Authenticatable
 
     public function hasPermissionTo(string $permission): bool
     {
+        $aliases = $this->permissionAliases($permission);
+        $permissions = array_values(array_unique(array_merge([$permission], $aliases)));
+
         return $this->roles()
-            ->whereHas('permissions', function ($query) use ($permission) {
-                $query->where('name', $permission);
+            ->whereHas('permissions', function ($query) use ($permissions) {
+                $query->whereIn('name', $permissions);
             })
             ->exists();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function permissionAliases(string $permission): array
+    {
+        $aliases = [
+            'audits.view' => ['view_audit'],
+            'view_audit' => ['audits.view'],
+            'audits.conduct' => ['create_audit'],
+            'create_audit' => ['audits.conduct'],
+            'audits.approve' => ['approve_audit'],
+            'approve_audit' => ['audits.approve'],
+            'audits.ncr.manage' => ['edit_audit'],
+            'edit_audit' => ['audits.ncr.manage'],
+            'workers.view' => ['view_worker'],
+            'view_worker' => ['workers.view'],
+            'workers.manage' => ['edit_worker'],
+            'edit_worker' => ['workers.manage', 'workers.track'],
+            'workers.track' => ['edit_worker'],
+            'users.view' => ['view_user_management'],
+            'view_user_management' => ['users.view'],
+            'users.create' => ['create_user_management'],
+            'create_user_management' => ['users.create'],
+            'users.update' => ['edit_user_management'],
+            'edit_user_management' => ['users.update'],
+            'users.delete' => ['delete_user_management'],
+            'delete_user_management' => ['users.delete'],
+            'incidents.submit' => ['create_incident'],
+            'create_incident' => ['incidents.submit'],
+            'incidents.approve' => ['approve_incident'],
+            'approve_incident' => ['incidents.approve'],
+            'incidents.update' => ['edit_incident'],
+            'edit_incident' => ['incidents.update'],
+            'incidents.comment' => ['create_incident', 'approve_incident'],
+        ];
+
+        return $aliases[$permission] ?? [];
     }
 
     public function isProtectedAccount(): bool

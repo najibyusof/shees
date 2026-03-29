@@ -27,6 +27,8 @@ class StoreIncidentCommentRequest extends FormRequest
     {
         return [
             'comment' => ['required', 'string', 'max:2000'],
+            'comment_type' => ['nullable', 'string', 'in:general,clarification,action_required,action,review,investigation'],
+            'is_critical' => ['nullable', 'boolean'],
         ];
     }
 }

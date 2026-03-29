@@ -1,5 +1,5 @@
 <nav class="border-b ui-border ui-surface/95 backdrop-blur">
-    <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+    <div class="mx-auto flex min-h-16 max-w-[1500px] items-center justify-between gap-3 px-4 py-2 sm:px-6 lg:px-8">
         <div class="flex items-center gap-3">
             <button @click="sidebarOpen = true"
                 class="inline-flex h-9 w-9 items-center justify-center rounded-lg border ui-border ui-text-muted hover:ui-surface-soft lg:hidden"
@@ -10,12 +10,20 @@
                 </svg>
             </button>
 
-            <a href="{{ route('dashboard') }}" class="text-lg font-semibold tracking-tight ui-text">
-                {{ config('app.name', 'Shees') }}
-            </a>
+            <div>
+                <a href="{{ route('dashboard') }}" class="text-sm font-semibold tracking-tight ui-text">
+                    {{ config('app.name', 'Shees') }}
+                </a>
+                <p class="text-xs ui-text-muted">Safety Dashboard</p>
+            </div>
         </div>
 
         <div class="flex items-center gap-3">
+            <div class="hidden items-end gap-3 md:flex">
+                <p class="text-xs ui-text-muted">{{ now()->format('D, d M Y') }}</p>
+                <p class="text-xs font-semibold text-emerald-600">System Online</p>
+            </div>
+
             <button @click="toggleTheme()"
                 class="inline-flex h-9 w-9 items-center justify-center rounded-lg border ui-border ui-text-muted hover:ui-surface-soft"
                 type="button" aria-label="Toggle theme">
@@ -53,7 +61,8 @@
                             @if ($unreadCount > 0)
                                 <form method="POST" action="{{ route('notifications.read-all') }}">
                                     @csrf
-                                    <button type="submit" class="text-xs font-medium text-sky-700 hover:underline dark:text-sky-300">
+                                    <button type="submit"
+                                        class="text-xs font-medium text-sky-700 hover:underline dark:text-sky-300">
                                         Mark all read
                                     </button>
                                 </form>
@@ -89,7 +98,7 @@
 
                 <div class="hidden items-center gap-2 rounded-lg border ui-border ui-surface-soft px-3 py-1.5 sm:flex">
                     <span
-                        class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                        class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-teal-700 text-xs font-semibold text-white">
                         {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
                     </span>
                     <span class="text-sm font-medium ui-text-muted">{{ Auth::user()->name }}</span>

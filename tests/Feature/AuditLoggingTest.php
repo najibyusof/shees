@@ -5,13 +5,21 @@ namespace Tests\Feature;
 use App\Console\Commands\CleanupAuditLogsCommand;
 use App\Models\AuditLog;
 use App\Models\Incident;
+use App\Models\IncidentClassification;
+use App\Models\IncidentLocation;
+use App\Models\IncidentType;
+use App\Models\LocationType;
 use App\Models\ReportPreset;
 use App\Models\Role;
+use App\Models\Subcontractor;
 use App\Models\SiteAudit;
 use App\Models\User;
+use App\Models\WorkActivity;
+use App\Models\WorkPackage;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class AuditLoggingTest extends TestCase
@@ -80,34 +88,34 @@ class AuditLoggingTest extends TestCase
         ]);
     }
 
-    public function test_incident_approve_action_is_logged(): void
+    public function test_incident_transition_action_is_logged(): void
     {
         $this->seed(RolesAndPermissionsSeeder::class);
 
         $owner = $this->userWithRole('Worker');
         $manager = $this->userWithRole('Manager');
 
-        $incident = Incident::query()->create([
+        $incident = Incident::query()->create($this->requiredIncidentAttributes($owner, [
             'reported_by' => $owner->id,
             'title' => 'Approval Audit Log Test',
             'description' => 'Incident for approve audit verification.',
+            'incident_description' => 'Incident for approve audit verification.',
             'location' => 'Warehouse',
             'datetime' => now(),
             'classification' => 'Minor',
             'status' => 'draft',
-        ]);
-
-        $this->actingAs($owner)
-            ->post(route('incidents.submit', $incident))
-            ->assertRedirect();
+        ]));
 
         $this->actingAs($manager)
-            ->post(route('incidents.approve', $incident), ['remarks' => 'Approved for test'])
+            ->post(route('incidents.transition', $incident), [
+                'to_status' => 'draft_submitted',
+                'remarks' => 'Transitioned for audit logging test',
+            ])
             ->assertRedirect();
 
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $manager->id,
-            'action' => 'approve',
+            'action' => 'transition',
             'module' => 'incidents',
         ]);
     }
@@ -221,5 +229,69 @@ class AuditLoggingTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertDatabaseMissing('audit_logs', ['id' => $oldLog->id]);
+    }
+
+    private function requiredIncidentAttributes(User $reporter, array $overrides = []): array
+    {
+        $locationType = LocationType::query()->firstOrCreate(
+            ['code' => 'LT-TST'],
+            ['name' => 'Test Location Type', 'is_active' => true]
+        );
+
+        $location = IncidentLocation::query()->firstOrCreate(
+            ['code' => 'LOC-TST'],
+            ['name' => 'Test Location', 'location_type_id' => $locationType->id, 'is_active' => true]
+        );
+
+        if ((int) $location->location_type_id !== (int) $locationType->id) {
+            $location->update(['location_type_id' => $locationType->id]);
+        }
+
+        $incidentType = IncidentType::query()->firstOrCreate(
+            ['code' => 'IT-TST'],
+            ['name' => 'Test Incident Type', 'is_active' => true]
+        );
+
+        $classification = IncidentClassification::query()->firstOrCreate(
+            ['code' => 'IC-TST'],
+            ['name' => 'Test Classification', 'is_active' => true]
+        );
+
+        $workPackage = WorkPackage::query()->firstOrCreate(
+            ['code' => 'WP-TST'],
+            ['name' => 'Test Work Package', 'is_active' => true]
+        );
+
+        $workActivity = WorkActivity::query()->firstOrCreate(
+            ['code' => 'WA-TST'],
+            ['name' => 'Test Work Activity', 'is_active' => true]
+        );
+
+        $subcontractor = Subcontractor::query()->first();
+
+        return array_merge([
+            'reported_by' => $reporter->id,
+            'incident_reference_number' => 'INC-TST-'.Str::upper(Str::random(8)),
+            'title' => 'Test Incident',
+            'description' => 'Test incident description.',
+            'incident_description' => 'Test incident description.',
+            'incident_type_id' => $incidentType->id,
+            'location_type_id' => $locationType->id,
+            'location_id' => $location->id,
+            'location' => $location->name,
+            'other_location' => $location->name,
+            'datetime' => now(),
+            'incident_date' => now()->toDateString(),
+            'incident_time' => now()->format('H:i:s'),
+            'classification' => 'Major',
+            'classification_id' => $classification->id,
+            'status' => 'draft',
+            'work_package_id' => $workPackage->id,
+            'work_activity_id' => $workActivity->id,
+            'immediate_response' => 'Immediate response executed.',
+            'subcontractor_id' => $subcontractor?->id,
+            'person_in_charge' => 'Test PIC',
+            'subcontractor_contact_number' => '+60123456789',
+        ], $overrides);
     }
 }

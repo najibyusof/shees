@@ -16,7 +16,6 @@ class DatabaseSeeder extends Seeder
         $seeders = [
             PermissionSeeder::class,
             RolesAndPermissionsSeeder::class,
-            RoleSeeder::class,
             UserSeeder::class,
             IncidentSeeder::class,
             TrainingSeeder::class,

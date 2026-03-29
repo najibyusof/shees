@@ -37,12 +37,20 @@ class TrainingSeeder extends Seeder
         for ($i = 0; $i < 10; $i++) {
             $startsAt = now()->subDays(random_int(5, 40));
             $endsAt = (clone $startsAt)->addDays(random_int(1, 5));
+            $title = $faker->randomElement($trainingTitles).' '.$faker->numerify('##');
+            $description = $faker->sentence(14);
 
             $training = Training::query()->create([
-                'title' => $faker->randomElement($trainingTitles).' '.$faker->numerify('##'),
-                'description' => $faker->sentence(14),
-                'title_translations' => null,
-                'description_translations' => null,
+                'title' => $title,
+                'description' => $description,
+                'title_translations' => [
+                    'en' => $title,
+                    'ms' => 'Latihan '.$faker->words(2, true),
+                ],
+                'description_translations' => [
+                    'en' => $description,
+                    'ms' => 'Modul latihan '.$faker->sentence(6),
+                ],
                 'starts_at' => $startsAt->toDateString(),
                 'ends_at' => $endsAt->toDateString(),
                 'certificate_validity_days' => $faker->randomElement([90, 180, 365, 730]),
@@ -52,21 +60,22 @@ class TrainingSeeder extends Seeder
             $assignedBy = $users->random();
 
             foreach ($assignedUsers as $assignee) {
-                $isCompleted = random_int(1, 100) <= 60;
+                $roll = random_int(1, 100);
+                $completionStatus = $roll <= 50 ? 'completed' : ($roll <= 80 ? 'assigned' : 'pending');
                 $assignedAt = now()->subDays(random_int(1, 120));
-                $completedAt = $isCompleted ? (clone $assignedAt)->addDays(random_int(1, 14)) : null;
+                $completedAt = $completionStatus === 'completed' ? (clone $assignedAt)->addDays(random_int(1, 14)) : null;
 
                 $training->users()->syncWithoutDetaching([
                     $assignee->id => [
                         'assigned_by' => $assignedBy->id,
                         'assigned_at' => $assignedAt,
                         'completed_at' => $completedAt,
-                        'completion_status' => $isCompleted ? 'completed' : 'pending',
+                        'completion_status' => $completionStatus,
                         'expiry_notified_at' => null,
                     ],
                 ]);
 
-                if (! $isCompleted) {
+                if ($completionStatus !== 'completed') {
                     continue;
                 }
 
@@ -89,6 +98,7 @@ class TrainingSeeder extends Seeder
                     'expiry_notified_at' => $isExpired ? now()->subDays(random_int(1, 30)) : null,
                     'metadata' => [
                         'completion_status' => 'completed',
+                        'source' => 'training_seed',
                         'seeded' => true,
                     ],
                 ]);
@@ -149,8 +159,14 @@ class TrainingSeeder extends Seeder
             $overdueTraining = Training::query()->create([
                 'title' => 'Overdue Mandatory Training '.$i,
                 'description' => 'Seeded overdue training scenario for compliance follow-up.',
-                'title_translations' => null,
-                'description_translations' => null,
+                'title_translations' => [
+                    'en' => 'Overdue Mandatory Training '.$i,
+                    'ms' => 'Latihan Mandatori Tertunggak '.$i,
+                ],
+                'description_translations' => [
+                    'en' => 'Seeded overdue training scenario for compliance follow-up.',
+                    'ms' => 'Senario latihan tertunggak untuk susulan pematuhan.',
+                ],
                 'starts_at' => now()->subDays(40 + ($i * 5))->toDateString(),
                 'ends_at' => now()->subDays(20 + ($i * 3))->toDateString(),
                 'certificate_validity_days' => 365,
@@ -169,6 +185,39 @@ class TrainingSeeder extends Seeder
                         'assigned_at' => $assignedAt,
                         'completed_at' => null,
                         'completion_status' => 'pending',
+                        'expiry_notified_at' => null,
+                    ],
+                ]);
+            }
+        }
+
+        // Scenario set: upcoming trainings with active assignments and no completion yet.
+        for ($i = 1; $i <= 2; $i++) {
+            $upcoming = Training::query()->create([
+                'title' => 'Upcoming Safety Drill '.$i,
+                'description' => 'Scheduled future training to validate planning workflows.',
+                'title_translations' => [
+                    'en' => 'Upcoming Safety Drill '.$i,
+                    'ms' => 'Latihan Keselamatan Akan Datang '.$i,
+                ],
+                'description_translations' => [
+                    'en' => 'Scheduled future training to validate planning workflows.',
+                    'ms' => 'Latihan masa hadapan untuk mengesahkan aliran perancangan.',
+                ],
+                'starts_at' => now()->addDays(7 + ($i * 3))->toDateString(),
+                'ends_at' => now()->addDays(9 + ($i * 3))->toDateString(),
+                'certificate_validity_days' => 365,
+                'is_active' => true,
+            ]);
+
+            $assignedBy = $users->random();
+            foreach ($users->random(random_int(4, 6)) as $assignee) {
+                $upcoming->users()->syncWithoutDetaching([
+                    $assignee->id => [
+                        'assigned_by' => $assignedBy->id,
+                        'assigned_at' => now()->subDays(random_int(0, 5)),
+                        'completed_at' => null,
+                        'completion_status' => 'assigned',
                         'expiry_notified_at' => null,
                     ],
                 ]);

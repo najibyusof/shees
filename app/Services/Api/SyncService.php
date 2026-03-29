@@ -12,6 +12,7 @@ use App\Models\Training;
 use App\Models\User;
 use App\Models\Worker;
 use App\Services\AuditLogService;
+use App\Services\IncidentService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -22,7 +23,10 @@ class SyncService
 
     private const CONFLICT_MANUAL_REVIEW = 'manual_review';
 
-    public function __construct(private readonly AuditLogService $auditLogService)
+    public function __construct(
+        private readonly AuditLogService $auditLogService,
+        private readonly IncidentService $incidentService,
+    )
     {
     }
 
@@ -172,7 +176,34 @@ class SyncService
             'updated_data' => [
                 'incidents'      => Incident::withTrashed()
                     ->where('updated_at', '>=', $since)
-                    ->with(['reporter'])
+                    ->with([
+                        'reporter',
+                        'incidentType',
+                        'incidentStatus',
+                        'incidentClassification',
+                        'reclassification',
+                        'incidentLocation.locationType',
+                        'workPackage',
+                        'subcontractor',
+                        'rootCause',
+                        'attachments.attachmentType',
+                        'attachments.attachmentCategory',
+                        'chronologies',
+                        'victims.victimType',
+                        'witnesses',
+                        'investigationTeamMembers',
+                        'damages.damageType',
+                        'immediateActions',
+                        'plannedActions',
+                        'comments.user',
+                        'comments.replies.user',
+                        'activities.user',
+                        'approvals.approver',
+                        'immediateCauses',
+                        'contributingFactors',
+                        'workActivities',
+                        'externalParties',
+                    ])
                     ->get()
                     ->map(fn ($i) => $this->incidentToArray($i))
                     ->values(),
@@ -239,6 +270,7 @@ class SyncService
         array &$conflicts
     ): void
     {
+        $user = User::query()->findOrFail($userId);
         $incident = null;
 
         // 1. Try to find by client temporary_id
@@ -278,34 +310,67 @@ class SyncService
         }
 
         if ($incident === null) {
-            // Create new record
-            Incident::create([
-                'reported_by'      => $userId,
-                'title'            => $item['title'] ?? 'Untitled (offline)',
-                'description'      => $item['description'] ?? null,
-                'location'         => $item['location'] ?? null,
-                'datetime'         => isset($item['datetime']) ? Carbon::parse($item['datetime']) : now(),
-                'classification'   => $item['classification'] ?? 'Minor',
-                'status'           => 'draft',
-                'temporary_id'     => $item['temporary_id'] ?? null,
-                'local_created_at' => isset($item['local_created_at'])
-                    ? Carbon::parse($item['local_created_at'])
-                    : null,
-            ]);
+            $this->incidentService->create(
+                $this->normalizeIncidentSyncPayload($item),
+                $item['attachments'] ?? [],
+                $user,
+            );
         } else {
-            // Last-write-wins: only apply client changes if client timestamp is newer
             if ($this->shouldApplyClientUpdate($item, $incident->updated_at)) {
-                $incident->update([
-                    'title'          => $item['title'] ?? $incident->title,
-                    'description'    => $item['description'] ?? $incident->description,
-                    'location'       => $item['location'] ?? $incident->location,
-                    'datetime'       => isset($item['datetime'])
-                        ? Carbon::parse($item['datetime'])
-                        : $incident->datetime,
-                    'classification' => $item['classification'] ?? $incident->classification,
-                ]);
+                $this->incidentService->update(
+                    $incident,
+                    $this->normalizeIncidentSyncPayload($item),
+                    $item['attachments'] ?? [],
+                    $user,
+                    $item['remove_attachment_ids'] ?? [],
+                );
             }
         }
+    }
+
+    private function normalizeIncidentSyncPayload(array $item): array
+    {
+        return array_filter([
+            'incident_reference_number' => $item['incident_reference_number'] ?? null,
+            'title' => $item['title'] ?? 'Untitled (offline)',
+            'incident_type_id' => $item['incident_type_id'] ?? null,
+            'incident_date' => $item['incident_date'] ?? ($item['datetime'] ?? null),
+            'incident_time' => $item['incident_time'] ?? ($item['datetime'] ?? null),
+            'status_id' => $item['status_id'] ?? null,
+            'status' => $item['status'] ?? null,
+            'work_package_id' => $item['work_package_id'] ?? null,
+            'location_id' => $item['location_id'] ?? null,
+            'other_location' => $item['other_location'] ?? ($item['location'] ?? null),
+            'classification_id' => $item['classification_id'] ?? null,
+            'classification' => $item['classification'] ?? null,
+            'reclassification_id' => $item['reclassification_id'] ?? null,
+            'incident_description' => $item['incident_description'] ?? ($item['description'] ?? null),
+            'immediate_response' => $item['immediate_response'] ?? null,
+            'subcontractor_id' => $item['subcontractor_id'] ?? null,
+            'person_in_charge' => $item['person_in_charge'] ?? null,
+            'subcontractor_contact_number' => $item['subcontractor_contact_number'] ?? null,
+            'gps_location' => $item['gps_location'] ?? null,
+            'activity_during_incident' => $item['activity_during_incident'] ?? null,
+            'type_of_accident' => $item['type_of_accident'] ?? null,
+            'basic_effect' => $item['basic_effect'] ?? null,
+            'conclusion' => $item['conclusion'] ?? null,
+            'close_remark' => $item['close_remark'] ?? null,
+            'rootcause_id' => $item['rootcause_id'] ?? null,
+            'other_rootcause' => $item['other_rootcause'] ?? null,
+            'chronologies' => $item['chronologies'] ?? null,
+            'victims' => $item['victims'] ?? null,
+            'witnesses' => $item['witnesses'] ?? null,
+            'investigation_team_members' => $item['investigation_team_members'] ?? null,
+            'damages' => $item['damages'] ?? null,
+            'immediate_actions' => $item['immediate_actions'] ?? null,
+            'planned_actions' => $item['planned_actions'] ?? null,
+            'immediate_cause_ids' => $item['immediate_cause_ids'] ?? null,
+            'contributing_factor_ids' => $item['contributing_factor_ids'] ?? null,
+            'work_activity_ids' => $item['work_activity_ids'] ?? null,
+            'external_party_ids' => $item['external_party_ids'] ?? null,
+            'temporary_id' => $item['temporary_id'] ?? null,
+            'local_created_at' => isset($item['local_created_at']) ? Carbon::parse($item['local_created_at']) : null,
+        ], static fn ($value) => $value !== null);
     }
 
     private function syncAttendanceLog(
@@ -667,12 +732,126 @@ class SyncService
         return [
             'id'               => $incident->id,
             'temporary_id'     => $incident->temporary_id,
+            'incident_reference_number' => $incident->incident_reference_number,
             'title'            => $incident->title,
-            'description'      => $incident->description,
+            'incident_type_id' => $incident->incident_type_id,
+            'description'      => $incident->incident_description ?? $incident->description,
             'location'         => $incident->location,
+            'location_id'      => $incident->location_id,
+            'other_location'   => $incident->other_location,
             'datetime'         => $incident->datetime?->toIso8601String(),
+            'incident_date'    => $incident->incident_date?->toDateString(),
+            'incident_time'    => $incident->incident_time?->format('H:i:s'),
             'classification'   => $incident->classification,
+            'classification_id' => $incident->classification_id,
+            'status_id'        => $incident->status_id,
             'status'           => $incident->status,
+            'work_package_id'  => $incident->work_package_id,
+            'immediate_response' => $incident->immediate_response,
+            'subcontractor_id' => $incident->subcontractor_id,
+            'person_in_charge' => $incident->person_in_charge,
+            'subcontractor_contact_number' => $incident->subcontractor_contact_number,
+            'gps_location' => $incident->gps_location,
+            'activity_during_incident' => $incident->activity_during_incident,
+            'type_of_accident' => $incident->type_of_accident,
+            'basic_effect' => $incident->basic_effect,
+            'conclusion' => $incident->conclusion,
+            'close_remark' => $incident->close_remark,
+            'rootcause_id' => $incident->rootcause_id,
+            'other_rootcause' => $incident->other_rootcause,
+            'attachments' => $incident->attachments->map(fn ($attachment) => [
+                'id' => $attachment->id,
+                'attachment_type_id' => $attachment->attachment_type_id,
+                'attachment_category_id' => $attachment->attachment_category_id,
+                'filename' => $attachment->filename,
+                'path' => $attachment->path,
+                'description' => $attachment->description,
+                'temporary_id' => $attachment->temporary_id,
+                'local_created_at' => $attachment->local_created_at?->toIso8601String(),
+                'deleted_at' => $attachment->deleted_at?->toIso8601String(),
+                'updated_at' => $attachment->updated_at?->toIso8601String(),
+            ])->values(),
+            'chronologies' => $incident->chronologies->map(fn ($entry) => [
+                'id' => $entry->id,
+                'event_date' => $entry->event_date?->toDateString(),
+                'event_time' => $entry->event_time?->format('H:i:s'),
+                'events' => $entry->events,
+                'sort_order' => $entry->sort_order,
+                'temporary_id' => $entry->temporary_id,
+                'local_created_at' => $entry->local_created_at?->toIso8601String(),
+                'deleted_at' => $entry->deleted_at?->toIso8601String(),
+                'updated_at' => $entry->updated_at?->toIso8601String(),
+            ])->values(),
+            'victims' => $incident->victims->map(fn ($victim) => [
+                'id' => $victim->id,
+                'victim_type_id' => $victim->victim_type_id,
+                'name' => $victim->name,
+                'identification' => $victim->identification,
+                'occupation' => $victim->occupation,
+                'age' => $victim->age,
+                'nationality' => $victim->nationality,
+                'working_experience' => $victim->working_experience,
+                'nature_of_injury' => $victim->nature_of_injury,
+                'body_injured' => $victim->body_injured,
+                'treatment' => $victim->treatment,
+                'temporary_id' => $victim->temporary_id,
+                'local_created_at' => $victim->local_created_at?->toIso8601String(),
+                'deleted_at' => $victim->deleted_at?->toIso8601String(),
+                'updated_at' => $victim->updated_at?->toIso8601String(),
+            ])->values(),
+            'witnesses' => $incident->witnesses->map(fn ($witness) => [
+                'id' => $witness->id,
+                'name' => $witness->name,
+                'designation' => $witness->designation,
+                'identification' => $witness->identification,
+                'temporary_id' => $witness->temporary_id,
+                'local_created_at' => $witness->local_created_at?->toIso8601String(),
+                'deleted_at' => $witness->deleted_at?->toIso8601String(),
+                'updated_at' => $witness->updated_at?->toIso8601String(),
+            ])->values(),
+            'investigation_team_members' => $incident->investigationTeamMembers->map(fn ($member) => [
+                'id' => $member->id,
+                'name' => $member->name,
+                'designation' => $member->designation,
+                'contact_number' => $member->contact_number,
+                'company' => $member->company,
+                'temporary_id' => $member->temporary_id,
+                'local_created_at' => $member->local_created_at?->toIso8601String(),
+                'deleted_at' => $member->deleted_at?->toIso8601String(),
+                'updated_at' => $member->updated_at?->toIso8601String(),
+            ])->values(),
+            'damages' => $incident->damages->map(fn ($damage) => [
+                'id' => $damage->id,
+                'damage_type_id' => $damage->damage_type_id,
+                'estimate_cost' => $damage->estimate_cost,
+                'temporary_id' => $damage->temporary_id,
+                'local_created_at' => $damage->local_created_at?->toIso8601String(),
+                'deleted_at' => $damage->deleted_at?->toIso8601String(),
+                'updated_at' => $damage->updated_at?->toIso8601String(),
+            ])->values(),
+            'immediate_actions' => $incident->immediateActions->map(fn ($action) => [
+                'id' => $action->id,
+                'action_taken' => $action->action_taken,
+                'company' => $action->company,
+                'temporary_id' => $action->temporary_id,
+                'local_created_at' => $action->local_created_at?->toIso8601String(),
+                'deleted_at' => $action->deleted_at?->toIso8601String(),
+                'updated_at' => $action->updated_at?->toIso8601String(),
+            ])->values(),
+            'planned_actions' => $incident->plannedActions->map(fn ($action) => [
+                'id' => $action->id,
+                'action_taken' => $action->action_taken,
+                'expected_date' => $action->expected_date?->toDateString(),
+                'actual_date' => $action->actual_date?->toDateString(),
+                'temporary_id' => $action->temporary_id,
+                'local_created_at' => $action->local_created_at?->toIso8601String(),
+                'deleted_at' => $action->deleted_at?->toIso8601String(),
+                'updated_at' => $action->updated_at?->toIso8601String(),
+            ])->values(),
+            'immediate_cause_ids' => $incident->immediateCauses->pluck('id')->values(),
+            'contributing_factor_ids' => $incident->contributingFactors->pluck('id')->values(),
+            'work_activity_ids' => $incident->workActivities->pluck('id')->values(),
+            'external_party_ids' => $incident->externalParties->pluck('id')->values(),
             'local_created_at' => $incident->local_created_at?->toIso8601String(),
             'deleted_at'       => $incident->deleted_at?->toIso8601String(),
             'created_at'       => $incident->created_at?->toIso8601String(),

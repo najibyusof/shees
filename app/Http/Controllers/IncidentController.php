@@ -4,18 +4,28 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreIncidentRequest;
 use App\Http\Requests\StoreIncidentCommentRequest;
+use App\Http\Requests\StoreIncidentCommentReplyRequest;
 use App\Http\Requests\UpdateIncidentRequest;
 use App\Models\Incident;
+use App\Models\IncidentComment;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\IncidentFormOptionsService;
 use App\Services\IncidentService;
+use App\Services\IncidentWorkflowService;
+use App\Support\IncidentRules;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
 class IncidentController extends Controller
 {
-    public function __construct(private readonly IncidentService $incidentService)
+    public function __construct(
+        private readonly IncidentService $incidentService,
+        private readonly IncidentWorkflowService $workflowService,
+        private readonly IncidentFormOptionsService $incidentFormOptionsService,
+    )
     {
         $this->authorizeResource(Incident::class, 'incident');
     }
@@ -153,9 +163,7 @@ class IncidentController extends Controller
      */
     public function create(): View
     {
-        $classifications = Incident::CLASSIFICATIONS;
-
-        return view('incidents.create', compact('classifications'));
+        return view('incidents.create', $this->incidentFormOptionsService->forForm());
     }
 
     /**
@@ -163,9 +171,11 @@ class IncidentController extends Controller
      */
     public function store(StoreIncidentRequest $request): RedirectResponse
     {
+        $validated = $request->validated();
+
         $this->incidentService->create(
-            $request->validated(),
-            $request->file('attachments', []),
+            $validated,
+            $this->normalizeAttachments($request, $validated),
             $request->user()
         );
 
@@ -181,60 +191,117 @@ class IncidentController extends Controller
      */
     public function edit(Incident $incident): View
     {
-        $incident->load('attachments');
-        $classifications = Incident::CLASSIFICATIONS;
+        $incident->load([
+            'incidentType',
+            'incidentStatus',
+            'incidentClassification',
+            'reclassification',
+            'incidentLocation.locationType',
+            'workPackage',
+            'subcontractor',
+            'rootCause',
+            'attachments.attachmentType',
+            'attachments.attachmentCategory',
+            'chronologies',
+            'victims.victimType',
+            'witnesses',
+            'investigationTeamMembers',
+            'damages.damageType',
+            'immediateActions',
+            'plannedActions',
+            'immediateCauses',
+            'contributingFactors',
+            'workActivities',
+            'externalParties',
+        ]);
 
-        return view('incidents.edit', compact('incident', 'classifications'));
+        return view('incidents.edit', array_merge(
+            ['incident' => $incident],
+            $this->incidentFormOptionsService->forForm()
+        ));
     }
 
     public function show(Incident $incident): View
     {
-        $incident->load(['reporter', 'attachments', 'activities.user', 'comments.user', 'approvals.approver']);
+        $incident->load([
+            'reporter',
+            'incidentType',
+            'incidentStatus',
+            'incidentClassification',
+            'reclassification',
+            'incidentLocation.locationType',
+            'workPackage',
+            'subcontractor',
+            'rootCause',
+            'attachments.attachmentType',
+            'attachments.attachmentCategory',
+            'chronologies',
+            'victims.victimType',
+            'witnesses',
+            'investigationTeamMembers',
+            'damages.damageType',
+            'immediateActions',
+            'plannedActions',
+            'comments.user',
+            'comments.resolver',
+            'comments.replies.user',
+            'activities.user',
+            'workflowLogs.performer',
+            'immediateCauses',
+            'contributingFactors',
+            'workActivities',
+            'externalParties',
+        ]);
 
-        $requiredApprovalRoles = Incident::APPROVAL_REQUIRED_ROLES;
-        $approvedRoles = $incident->approvals
-            ->where('decision', 'approved')
-            ->pluck('approver_role')
-            ->intersect($requiredApprovalRoles)
-            ->unique()
-            ->values()
+        $allowedTransitions = $this->workflowService->allowedTransitionsFor(
+            request()->user(),
+            $incident,
+        );
+
+        $blockedTransitionReasons = collect($allowedTransitions)
+            ->mapWithKeys(function (string $toStatus) use ($incident) {
+                $blocked = $this->workflowService->isTransitionBlockedByUnresolvedCriticalComments(
+                    request()->user(),
+                    $incident,
+                    $toStatus,
+                );
+
+                return [$toStatus => $blocked
+                    ? 'Resolve critical comments before progressing this stage.'
+                    : null];
+            })
             ->all();
-        $missingApprovalRoles = array_values(array_diff($requiredApprovalRoles, $approvedRoles));
 
         $workflowHistory = collect()
             ->merge($incident->activities->map(function ($activity) {
                 return [
-                    'type' => 'activity',
+                    'type'      => 'activity',
                     'timestamp' => $activity->created_at,
-                    'title' => $activity->description ?? ucfirst(str_replace('_', ' ', $activity->action)),
-                    'actor' => $activity->user?->name ?? 'System',
-                    'details' => ($activity->metadata['from'] ?? null) && ($activity->metadata['to'] ?? null)
-                        ? 'Status: '.$activity->metadata['from'].' -> '.$activity->metadata['to']
+                    'title'     => $activity->description ?? ucfirst(str_replace('_', ' ', $activity->action)),
+                    'actor'     => $activity->user?->name ?? 'System',
+                    'details'   => ($activity->metadata['from'] ?? null) && ($activity->metadata['to'] ?? null)
+                        ? 'Status: '.$activity->metadata['from'].' → '.$activity->metadata['to']
                         : null,
                 ];
             }))
             ->merge($incident->comments->map(function ($comment) {
                 return [
-                    'type' => 'comment',
+                    'type'      => 'comment',
                     'timestamp' => $comment->created_at,
-                    'title' => 'Comment added',
-                    'actor' => $comment->user?->name ?? 'Unknown',
-                    'details' => $comment->comment,
-                ];
-            }))
-            ->merge($incident->approvals->map(function ($approval) {
-                return [
-                    'type' => 'approval',
-                    'timestamp' => $approval->decided_at,
-                    'title' => 'Decision: '.$approval->decision,
-                    'actor' => ($approval->approver?->name ?? 'Unknown').' ('.$approval->approver_role.')',
-                    'details' => $approval->remarks,
+                    'title'     => 'Comment added',
+                    'actor'     => $comment->user?->name ?? 'Unknown',
+                    'details'   => $comment->comment,
                 ];
             }))
             ->sortByDesc('timestamp')
             ->values();
 
-        return view('incidents.show', compact('incident', 'workflowHistory', 'requiredApprovalRoles', 'approvedRoles', 'missingApprovalRoles'));
+        return view('incidents.show', compact(
+            'incident',
+            'workflowHistory',
+            'allowedTransitions',
+            'blockedTransitionReasons',
+        ));
     }
 
     /**
@@ -244,12 +311,11 @@ class IncidentController extends Controller
     {
         $validated = $request->validated();
         $removeAttachmentIds = $validated['remove_attachment_ids'] ?? [];
-        unset($validated['remove_attachment_ids']);
 
         $this->incidentService->update(
             $incident,
             $validated,
-            $request->file('attachments', []),
+            $this->normalizeAttachments($request, $validated),
             $request->user(),
             $removeAttachmentIds
         );
@@ -261,61 +327,140 @@ class IncidentController extends Controller
         ]);
     }
 
-    public function submit(Request $request, Incident $incident): RedirectResponse
+    /**
+     * Advance the incident through the collaborative workflow.
+     * The exact transition is validated inside IncidentWorkflowService.
+     */
+    public function transition(Request $request, Incident $incident): RedirectResponse
     {
-        $this->authorize('submit', $incident);
-
-        $this->incidentService->submitForApproval($incident, $request->user());
-
-        return redirect()->route('incidents.show', $incident)->with('toast', [
-            'type' => 'success',
-            'title' => 'Submitted',
-            'message' => 'Incident has been submitted for approval.',
-        ]);
-    }
-
-    public function approve(Request $request, Incident $incident): RedirectResponse
-    {
-        $this->authorize('approve', $incident);
+        $this->authorize('transition', $incident);
 
         $validated = $request->validate([
-            'remarks' => ['nullable', 'string', 'max:1000'],
+            'to_status' => ['required', 'string', 'in:'.implode(',', Incident::STATUSES)],
+            'remarks'   => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $this->incidentService->approve($incident, $request->user(), $validated['remarks'] ?? null);
+        $this->workflowService->transition(
+            $incident,
+            $request->user(),
+            $validated['to_status'],
+            $validated['remarks'] ?? null,
+        );
+
+        $label = ucwords(str_replace('_', ' ', $validated['to_status']));
 
         return redirect()->route('incidents.show', $incident)->with('toast', [
-            'type' => 'success',
-            'title' => 'Approved',
-            'message' => 'Incident approved successfully.',
-        ]);
-    }
-
-    public function reject(Request $request, Incident $incident): RedirectResponse
-    {
-        $this->authorize('reject', $incident);
-
-        $validated = $request->validate([
-            'reason' => ['required', 'string', 'max:1000'],
-        ]);
-
-        $this->incidentService->reject($incident, $request->user(), $validated['reason']);
-
-        return redirect()->route('incidents.show', $incident)->with('toast', [
-            'type' => 'warning',
-            'title' => 'Rejected',
-            'message' => 'Incident rejected.',
+            'type'    => 'success',
+            'title'   => 'Workflow Updated',
+            'message' => "Incident moved to {$label}.",
         ]);
     }
 
     public function comment(StoreIncidentCommentRequest $request, Incident $incident): RedirectResponse
     {
-        $this->incidentService->addComment($incident, $request->user(), $request->validated('comment'));
+        $this->incidentService->addComment(
+            $incident,
+            $request->user(),
+            $request->validated('comment'),
+            (string) ($request->validated('comment_type') ?? 'general'),
+            $request->filled('is_critical') ? (bool) $request->boolean('is_critical') : null,
+        );
 
         return redirect()->route('incidents.show', $incident)->with('toast', [
             'type' => 'success',
             'title' => 'Comment Added',
             'message' => 'Your comment was added to the workflow history.',
         ]);
+    }
+
+    public function reply(StoreIncidentCommentReplyRequest $request, Incident $incident, IncidentComment $comment): RedirectResponse
+    {
+        abort_unless($comment->incident_id === $incident->id, 404);
+
+        $this->incidentService->addCommentReply($incident, $comment, $request->user(), $request->validated('reply'));
+
+        return redirect()->route('incidents.show', $incident)->with('toast', [
+            'type' => 'success',
+            'title' => 'Reply Added',
+            'message' => 'Your reply was added to the discussion.',
+        ]);
+    }
+
+    public function resolveComment(Request $request, Incident $incident, IncidentComment $comment): RedirectResponse
+    {
+        abort_unless($comment->incident_id === $incident->id, 404);
+        $this->authorize('comment', $incident);
+
+        $validated = $request->validate([
+            'resolved' => ['required', 'boolean'],
+            'resolution_note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $resolved = (bool) $validated['resolved'];
+
+        $this->incidentService->setCommentResolution(
+            $incident,
+            $comment,
+            $request->user(),
+            $resolved,
+            $validated['resolution_note'] ?? null,
+        );
+
+        return redirect()->route('incidents.show', $incident)->with('toast', [
+            'type' => 'success',
+            'title' => $resolved ? 'Comment Resolved' : 'Comment Reopened',
+            'message' => $resolved
+                ? 'The comment has been marked as resolved.'
+                : 'The comment has been marked as unresolved.',
+        ]);
+    }
+
+    public function autosave(Request $request, ?Incident $incident = null): JsonResponse
+    {
+        if ($incident === null) {
+            $this->authorize('create', Incident::class);
+        } else {
+            $this->authorize('update', $incident);
+        }
+
+        $validated = $request->validate(IncidentRules::partialPayload());
+
+        if ($incident === null) {
+            $incident = $this->incidentService->create(
+                $validated,
+                [],
+                $request->user()
+            );
+        } else {
+            $this->incidentService->update(
+                $incident,
+                $validated,
+                [],
+                $request->user(),
+                []
+            );
+            $incident->refresh();
+        }
+
+        return response()->json([
+            'id'           => $incident->id,
+            'temporary_id' => $incident->temporary_id,
+            'savedAt'      => $incident->updated_at?->toISOString() ?? now()->toISOString(),
+        ]);
+    }
+
+    private function normalizeAttachments(Request $request, array $validated): array
+    {
+        return collect($validated['attachments'] ?? [])
+            ->map(function (array $attachment, int $index) use ($request) {
+                $file = $request->file("attachments.{$index}.file");
+
+                if ($file) {
+                    $attachment['file'] = $file;
+                }
+
+                return $attachment;
+            })
+            ->all();
     }
 }

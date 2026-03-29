@@ -72,6 +72,8 @@ class AuthorizationExampleController extends Controller
 
     public function updateUsersPreferences(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', User::class);
+
         $validated = $request->validate([
             'density' => ['required', 'in:comfortable,compact'],
             'defaultSort' => ['required', 'in:id,name,email,created_at'],

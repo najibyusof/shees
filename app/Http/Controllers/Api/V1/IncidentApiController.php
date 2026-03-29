@@ -27,7 +27,7 @@ class IncidentApiController extends Controller
     {
         $user  = $request->user();
         $query = Incident::withTrashed()
-            ->with(['reporter'])
+            ->with(['reporter', 'incidentStatus', 'incidentClassification', 'incidentLocation'])
             ->when(
                 ! $user->hasAnyRole(['Admin', 'Manager', 'Safety Officer']),
                 fn ($q) => $q->where('reported_by', $user->id)
@@ -54,15 +54,9 @@ class IncidentApiController extends Controller
     public function store(StoreIncidentApiRequest $request): JsonResponse
     {
         $data     = $request->validated();
-        $incident = $this->incidentService->create($data, [], $request->user());
+        $incident = $this->incidentService->create($data, $data['attachments'] ?? [], $request->user());
 
-        // Persist offline sync fields that the service doesn't handle
-        $incident->update(array_filter([
-            'temporary_id'     => $data['temporary_id'] ?? null,
-            'local_created_at' => $data['local_created_at'] ?? null,
-        ]));
-
-        return $this->created(new IncidentResource($incident->fresh('reporter')));
+        return $this->created(new IncidentResource($incident));
     }
 
     /**
@@ -70,7 +64,34 @@ class IncidentApiController extends Controller
      */
     public function show(Incident $incident): JsonResponse
     {
-        $incident->load(['reporter', 'attachments', 'activities', 'comments', 'approvals.approver']);
+        $incident->load([
+            'reporter',
+            'incidentType',
+            'incidentStatus',
+            'incidentClassification',
+            'reclassification',
+            'incidentLocation.locationType',
+            'workPackage',
+            'subcontractor',
+            'rootCause',
+            'attachments.attachmentType',
+            'attachments.attachmentCategory',
+            'chronologies',
+            'victims.victimType',
+            'witnesses',
+            'investigationTeamMembers',
+            'damages.damageType',
+            'immediateActions',
+            'plannedActions',
+            'comments.user',
+            'comments.replies.user',
+            'activities.user',
+            'approvals.approver',
+            'immediateCauses',
+            'contributingFactors',
+            'workActivities',
+            'externalParties',
+        ]);
 
         return $this->success(new IncidentResource($incident));
     }
@@ -92,11 +113,11 @@ class IncidentApiController extends Controller
         $incident = $this->incidentService->update(
             $incident,
             $request->validated(),
-            [],
+            $request->validated('attachments', []),
             $user
         );
 
-        return $this->success(new IncidentResource($incident->fresh('reporter')));
+        return $this->success(new IncidentResource($incident));
     }
 
     /**

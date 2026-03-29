@@ -81,6 +81,17 @@ class AuditSeeder extends Seeder
                 'notes' => 'Routine KPI seed data.',
             ]);
 
+            SiteAuditKpi::query()->create([
+                'site_audit_id' => $audit->id,
+                'name' => 'Permit-to-Work Compliance',
+                'target_value' => 100,
+                'actual_value' => $faker->randomFloat(2, 72, 100),
+                'unit' => '%',
+                'weight' => 4,
+                'status' => 'completed',
+                'notes' => 'Permit checks sampled across active zones.',
+            ]);
+
             if (in_array($status, ['under_review', 'approved'], true)) {
                 SiteAuditApproval::query()->create([
                     'site_audit_id' => $audit->id,
@@ -131,10 +142,10 @@ class AuditSeeder extends Seeder
                     'verified_by' => null,
                     'title' => 'Corrective Action for '.$ncr->reference_no,
                     'description' => $faker->sentence(12),
-                    'status' => $faker->randomElement(['open', 'in_progress', 'completed']),
+                    'status' => $faker->randomElement(['open', 'in_progress', 'completed', 'verified']),
                     'due_date' => now()->addDays(random_int(5, 30))->toDateString(),
-                    'completed_at' => null,
-                    'verified_at' => null,
+                    'completed_at' => random_int(1, 100) <= 45 ? now()->subDays(random_int(1, 14)) : null,
+                    'verified_at' => random_int(1, 100) <= 25 ? now()->subDays(random_int(1, 10)) : null,
                     'completion_notes' => $faker->optional()->sentence(8),
                 ]);
             }
@@ -193,6 +204,17 @@ class AuditSeeder extends Seeder
                 'decided_at' => (clone $scheduledFor)->addHours(8),
             ]);
 
+            SiteAuditKpi::query()->create([
+                'site_audit_id' => $failedAudit->id,
+                'name' => 'Critical Controls Effectiveness',
+                'target_value' => 95,
+                'actual_value' => $faker->randomFloat(2, 35, 60),
+                'unit' => '%',
+                'weight' => 5,
+                'status' => 'failed',
+                'notes' => 'Multiple high-risk controls found non-compliant.',
+            ]);
+
             $ncrCount = random_int(3, 5);
             for ($ncrNo = 1; $ncrNo <= $ncrCount; $ncrNo++) {
                 $ownerUser = $owners->random();
@@ -229,6 +251,69 @@ class AuditSeeder extends Seeder
                     'completion_notes' => null,
                 ]);
             }
+        }
+
+        // Scenario set: overdue corrective actions still pending verification.
+        $overdueOwner = $owners->random();
+        $overdueManager = $managers->random();
+        $overdueSafety = $safetyOfficers->random();
+        $overdueDate = now()->subDays(30);
+        $overdueReferenceNo = 'AUD-OVD-0001';
+
+        if (! SiteAudit::query()->where('reference_no', $overdueReferenceNo)->exists()) {
+            $overdueAudit = SiteAudit::query()->create([
+                'created_by' => $overdueOwner->id,
+                'submitted_by' => $overdueOwner->id,
+                'reviewed_by' => $overdueSafety->id,
+                'approved_by' => $overdueManager->id,
+                'rejected_by' => null,
+                'reference_no' => $overdueReferenceNo,
+                'site_name' => $faker->randomElement(['North Plant', 'South Plant', 'Main Facility']),
+                'area' => 'High-Risk Zone',
+                'audit_type' => 'internal',
+                'scheduled_for' => $overdueDate->toDateString(),
+                'conducted_at' => (clone $overdueDate)->addHours(2),
+                'status' => 'approved',
+                'kpi_score' => 78.4,
+                'scope' => 'Overdue corrective action monitoring scenario',
+                'summary' => 'Audit approved but contains overdue actions requiring escalation.',
+                'rejection_reason' => null,
+                'submitted_at' => (clone $overdueDate)->addHours(1),
+                'reviewed_at' => (clone $overdueDate)->addHours(5),
+                'approved_at' => (clone $overdueDate)->addHours(7),
+                'rejected_at' => null,
+            ]);
+
+            $ncr = NcrReport::query()->create([
+                'site_audit_id' => $overdueAudit->id,
+                'reported_by' => $overdueOwner->id,
+                'owner_id' => $overdueOwner->id,
+                'verified_by' => null,
+                'reference_no' => 'NCR-OVD-'.$overdueAudit->id.'-01',
+                'title' => 'Overdue lockout-tagout controls',
+                'description' => 'Controls were defined but completion verification remains overdue.',
+                'severity' => 'high',
+                'status' => 'in_progress',
+                'root_cause' => 'Insufficient shift-level follow-up ownership.',
+                'containment_action' => 'Temporary supervisor checks implemented.',
+                'corrective_action_plan' => 'Implement digital LOTO checklist with escalation rules.',
+                'due_date' => now()->subDays(8)->toDateString(),
+                'verified_at' => null,
+                'closed_at' => null,
+            ]);
+
+            CorrectiveAction::query()->create([
+                'ncr_report_id' => $ncr->id,
+                'assigned_to' => $overdueOwner->id,
+                'verified_by' => null,
+                'title' => 'Deploy checklist escalation for LOTO',
+                'description' => 'Roll out checklist and escalation with sign-off evidence.',
+                'status' => 'in_progress',
+                'due_date' => now()->subDays(5)->toDateString(),
+                'completed_at' => null,
+                'verified_at' => null,
+                'completion_notes' => 'Implementation underway; verification pending.',
+            ]);
         }
     }
 }
