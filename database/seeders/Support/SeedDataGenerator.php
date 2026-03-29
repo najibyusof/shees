@@ -25,6 +25,17 @@ class SeedDataGenerator
         return preg_replace_callback('/#/', fn () => (string) random_int(0, 9), $pattern) ?? $pattern;
     }
 
+    public function bothify(string $pattern): string
+    {
+        $withNumbers = $this->numerify($pattern);
+
+        return preg_replace_callback('/\?/', function (): string {
+            $letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+            return $letters[random_int(0, strlen($letters) - 1)];
+        }, $withNumbers) ?? $withNumbers;
+    }
+
     /**
      * @return string|array<int,string>
      */
@@ -70,6 +81,21 @@ class SeedDataGenerator
         $last = ['Cruz', 'Reyes', 'Santos', 'Lim', 'Garcia', 'Tan', 'Mendoza', 'Bautista'];
 
         return $this->randomElement($first).' '.$this->randomElement($last);
+    }
+
+    public function company(): string
+    {
+        $prefixes = ['North', 'South', 'East', 'West', 'Prime', 'Global', 'Summit', 'Vertex'];
+        $suffixes = ['Engineering', 'Construction', 'Industries', 'Solutions', 'Services', 'Holdings'];
+
+        return $this->randomElement($prefixes).' '.$this->randomElement($suffixes);
+    }
+
+    public function country(): string
+    {
+        $countries = ['Malaysia', 'Singapore', 'Indonesia', 'Philippines', 'Thailand', 'Vietnam', 'Brunei'];
+
+        return $this->randomElement($countries);
     }
 
     public function jobTitle(): string
