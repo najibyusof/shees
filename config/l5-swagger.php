@@ -67,7 +67,7 @@ return [
                  * 2. only csama user has access to the swagger-ui
                  * 3. dedicated domain/subdomain for swagger-ui
                  */
-                'swagger_ui_assets_path' => 'vendor/swagger-ui/dist',
+                'swagger_ui_assets_path' => 'vendor/swagger-api/swagger-ui/dist/',
 
                 /*
                  * Absolute path to directory where to export views
@@ -215,7 +215,7 @@ return [
              * 2. only certain user has access to the swagger-ui
              * 3. dedicated domain/subdomain for swagger-ui
              */
-            'swagger_ui_assets_path' => 'vendor/swagger-ui/dist',
+            'swagger_ui_assets_path' => 'vendor/swagger-api/swagger-ui/dist/',
 
             /*
              * Absolute path to directory where to export views

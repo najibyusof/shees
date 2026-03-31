@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>SHEES API Documentation</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.32.1/swagger-ui.min.css">
+    <link rel="stylesheet" href="{{ route('l5-swagger.default.asset', ['asset' => 'swagger-ui.css']) }}">
     <style>
         html {
             box-sizing: border-box;
@@ -75,13 +75,18 @@
 
     <div id="swagger-ui"></div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.32.1/swagger-ui.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.32.1/swagger-ui-bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.32.1/swagger-ui-standalone-preset.min.js"></script>
+    <script src="{{ route('l5-swagger.default.asset', ['asset' => 'swagger-ui-bundle.js']) }}"></script>
+    <script src="{{ route('l5-swagger.default.asset', ['asset' => 'swagger-ui-standalone-preset.js']) }}"></script>
     <script>
         window.onload = function() {
+            if (typeof SwaggerUIBundle === 'undefined') {
+                document.getElementById('swagger-ui').innerHTML =
+                    '<div style="padding:20px;color:#b00020;">Failed to load Swagger UI assets. Check internet/CDN access.</div>';
+                return;
+            }
+
             const ui = SwaggerUIBundle({
-                url: "{{ url('api/documentation/json') }}",
+                url: "{{ route('api.documentation.json') }}",
                 dom_id: '#swagger-ui',
                 presets: [
                     SwaggerUIBundle.presets.apis,
@@ -102,27 +107,17 @@
                 filter: true,
                 persistAuthorization: true,
                 displayRequestDuration: true,
-                preAuthorizeApiKey: {
-                    Bearer: '{{ session('api_token', '') }}'
-                }
-            })
-            window.ui = ui
-
-            // Update Bearer token from localStorage if available
-            const token = localStorage.getItem('api_token')
-            if (token) {
-                ui.authActions.authorize({
-                    Bearer: {
-                        value: token,
-                        schema: {
-                            type: 'apiKey',
-                            name: 'Authorization',
-                            in: 'header'
-                        }
+                onComplete: function() {
+                    const token = localStorage.getItem('api_token');
+                    if (token) {
+                        // Security scheme key must match components.securitySchemes key.
+                        ui.preauthorizeApiKey('bearer_token', token);
                     }
-                })
-            }
-        }
+                }
+            });
+
+            window.ui = ui;
+        };
     </script>
 </body>
 
