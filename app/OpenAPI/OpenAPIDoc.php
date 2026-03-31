@@ -27,21 +27,40 @@ use OpenAPI\Annotations as OA;
  *     },
  *     paths={},
  *     components=@OA\Components(
+ *         responses={
+ *             "Unauthorized"=@OA\Response(
+ *                 response="Unauthorized",
+ *                 description="Unauthorized",
+ *                 @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+ *             ),
+ *             "ValidationError"=@OA\Response(
+ *                 response="ValidationError",
+ *                 description="Validation error",
+ *                 @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+ *             ),
+ *             "NotFound"=@OA\Response(
+ *                 response="NotFound",
+ *                 description="Resource not found",
+ *                 @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
+ *             )
+ *         },
  *         securitySchemes={
  *             "bearer_token"=@OA\SecurityScheme(
+ *                 securityScheme="bearer_token",
  *                 type="http",
- *                 description="Login with credentials to get a Bearer token",
+ *                 description="Laravel Sanctum bearer token. Obtain token from /api/v1/auth/login and authorize using: Bearer {token}",
  *                 name="bearer_token",
  *                 in="header",
  *                 scheme="bearer",
- *                 bearerFormat="JWT"
+ *                 bearerFormat="Sanctum"
  *             ),
  *         },
  *         schemas={
  *             "ApiResponse"=@OA\Schema(
+ *                 schema="ApiResponse",
  *                 title="API Response",
  *                 description="Standard API Response",
- *                 required={"success", "message"},
+ *                 required={"success", "message", "data"},
  *                 @OA\Property(
  *                     property="success",
  *                     type="boolean",
@@ -66,6 +85,7 @@ use OpenAPI\Annotations as OA;
  *                 )
  *             ),
  *             "ErrorResponse"=@OA\Schema(
+ *                 schema="ErrorResponse",
  *                 title="Error Response",
  *                 description="Standard Error Response",
  *                 required={"success", "message"},
@@ -89,6 +109,7 @@ use OpenAPI\Annotations as OA;
  *                 )
  *             ),
  *             "PaginationMeta"=@OA\Schema(
+ *                 schema="PaginationMeta",
  *                 title="Pagination Metadata",
  *                 type="object",
  *                 @OA\Property(

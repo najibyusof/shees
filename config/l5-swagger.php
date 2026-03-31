@@ -29,14 +29,36 @@ return [
             ],
             'paths' => [
                 /*
+                 * Absolute paths to directories containing OpenAPI annotations.
+                 */
+                'annotations' => [
+                    base_path('app/OpenAPI'),
+                ],
+
+                /*
+                 * Absolute path to where parsed OpenAPI docs are stored.
+                 */
+                'docs' => storage_path('api-docs'),
+
+                /*
+                 * Base path used by swagger-php scanner.
+                 */
+                'base' => base_path(),
+
+                /*
+                 * Absolute paths excluded from scanning.
+                 */
+                'excludes' => [],
+
+                /*
                  * Absolute file path to location where parsed swagger will be stored
                  */
-                'docs_json' => 'storage/api-docs/api-docs.json',
+                'docs_json' => 'api-docs.json',
 
                 /*
                  * Absolute file path to location where parsed swagger yaml will be stored
                  */
-                'docs_yaml' => 'storage/api-docs/api-docs.yaml',
+                'docs_yaml' => 'api-docs.yaml',
 
                 /*
                  * File path from `public` folder(s) to use as js, css, and swagger-ui required files.
@@ -67,7 +89,10 @@ return [
                  * Other valid values:
                  * - ReflectionAnalyser
                  */
-                'analyser' => null,
+                'analyser' => new \OpenApi\Analysers\ReflectionAnalyser([
+                    new \OpenApi\Analysers\AttributeAnnotationFactory(),
+                    new \OpenApi\Analysers\DocBlockAnnotationFactory(),
+                ]),
 
                 /**
                  * Controllers & methods to include in swagger documentation
@@ -94,7 +119,7 @@ return [
                     'name' => 'Token',
                     'in' => 'header',
                     'scheme' => 'bearer',
-                    'bearerFormat' => 'JWT',
+                    'bearerFormat' => 'Sanctum',
                 ],
             ],
             'info' => [
@@ -152,14 +177,36 @@ return [
         ],
         'paths' => [
             /*
+             * Absolute paths to directories containing OpenAPI annotations.
+             */
+            'annotations' => [
+                base_path('app/OpenAPI'),
+            ],
+
+            /*
+             * Absolute path to where parsed OpenAPI docs are stored.
+             */
+            'docs' => storage_path('api-docs'),
+
+            /*
+             * Base path used by swagger-php scanner.
+             */
+            'base' => base_path(),
+
+            /*
+             * Absolute paths excluded from scanning.
+             */
+            'excludes' => [],
+
+            /*
              * Absolute file path to location where parsed swagger will be stored
              */
-            'docs_json' => 'storage/api-docs/api-docs.json',
+            'docs_json' => 'api-docs.json',
 
             /*
              * Absolute file path to location where parsed swagger yaml will be stored
              */
-            'docs_yaml' => 'storage/api-docs/api-docs.yaml',
+            'docs_yaml' => 'api-docs.yaml',
 
             /*
              * File path from `public` folder(s) to use as js, css, and swagger-ui required files.
@@ -182,6 +229,13 @@ return [
              * `servers` parameter under #[OA\OpenApi()] or individual operations will override this value
              */
             'base_path' => '/api',
+        ],
+
+        /*
+         * Constants which can be used in annotations.
+         */
+        'constants' => [
+            'L5_SWAGGER_CONST_HOST' => env('L5_SWAGGER_CONST_HOST', env('APP_URL', 'http://localhost')),
         ],
     ],
 ];

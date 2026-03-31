@@ -5,407 +5,54 @@ namespace App\OpenAPI;
 use OpenAPI\Annotations as OA;
 
 /**
- * @OA\Schema(
- *     schema="Incident",
- *     title="Incident",
- *     description="Incident Model",
- *     required={"id", "title", "status", "reported_by"},
- *     @OA\Property(
- *         property="id",
- *         type="integer",
- *         example=1,
- *         description="Incident ID"
+ * @OA\Tag(name="Incidents", description="Incident reporting and management")
+ *
+ * @OA\PathItem(
+ *     path="/api/v1/incidents",
+ *     @OA\Get(
+ *         tags={"Incidents"},
+ *         operationId="v1IncidentsIndex",
+ *         summary="List incidents",
+ *         security={{"bearer_token": {}}},
+ *         @OA\Parameter(name="status", in="query", @OA\Schema(type="string")),
+ *         @OA\Parameter(name="classification", in="query", @OA\Schema(type="string")),
+ *         @OA\Parameter(name="search", in="query", @OA\Schema(type="string")),
+ *         @OA\Response(response=200, description="Incidents list", @OA\JsonContent(@OA\Property(property="success", type="boolean", example=true), @OA\Property(property="message", type="string", example="Success"), @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Incident")))),
+ *         @OA\Response(response=401, description="Unauthorized", @OA\JsonContent(ref="#/components/schemas/ErrorResponse"))
  *     ),
- *     @OA\Property(
- *         property="title",
- *         type="string",
- *         example="Safety incident occurred",
- *         description="Incident title"
- *     ),
- *     @OA\Property(
- *         property="description",
- *         type="string",
- *         example="Detailed description of the incident",
- *         description="Full incident description"
- *     ),
- *     @OA\Property(
- *         property="status",
- *         type="string",
- *         enum={"reported", "under_investigation", "resolved", "closed"},
- *         example="under_investigation",
- *         description="Current status of the incident"
- *     ),
- *     @OA\Property(
- *         property="classification",
- *         type="string",
- *         enum={"high_risk", "medium_risk", "low_risk"},
- *         example="high_risk",
- *         description="Risk classification"
- *     ),
- *     @OA\Property(
- *         property="location",
- *         type="string",
- *         example="Office Building A",
- *         description="Incident location"
- *     ),
- *     @OA\Property(
- *         property="reported_by",
- *         type="integer",
- *         example=1,
- *         description="User ID who reported the incident"
- *     ),
- *     @OA\Property(
- *         property="datetime",
- *         type="string",
- *         format="date-time",
- *         example="2026-03-28T14:30:00Z",
- *         description="Date and time of incident"
- *     ),
- *     @OA\Property(
- *         property="temporary_id",
- *         type="string",
- *         example="temp_12345",
- *         description="Temporary ID for offline sync"
- *     ),
- *     @OA\Property(
- *         property="local_created_at",
- *         type="string",
- *         format="date-time",
- *         example="2026-03-28T14:20:00Z",
- *         description="Local creation timestamp (offline)"
- *     ),
- *     @OA\Property(
- *         property="created_at",
- *         type="string",
- *         format="date-time",
- *         example="2026-03-28T14:30:00Z"
- *     ),
- *     @OA\Property(
- *         property="updated_at",
- *         type="string",
- *         format="date-time",
- *         example="2026-03-28T15:00:00Z"
+ *     @OA\Post(
+ *         tags={"Incidents"},
+ *         operationId="v1IncidentsStore",
+ *         summary="Create incident",
+ *         security={{"bearer_token": {}}},
+ *         @OA\RequestBody(required=true, @OA\JsonContent(
+ *             required={"title", "incident_type_id", "incident_date", "incident_time", "work_package_id", "location_type_id", "classification_id", "incident_description"},
+ *             @OA\Property(property="title", type="string", example="Forklift collision near loading dock"),
+ *             @OA\Property(property="incident_type_id", type="integer", example=2),
+ *             @OA\Property(property="incident_date", type="string", format="date", example="2026-01-15"),
+ *             @OA\Property(property="incident_time", type="string", example="13:45"),
+ *             @OA\Property(property="work_package_id", type="integer", example=3),
+ *             @OA\Property(property="location_type_id", type="integer", example=1),
+ *             @OA\Property(property="classification_id", type="integer", example=2),
+ *             @OA\Property(property="incident_description", type="string"),
+ *             @OA\Property(property="temporary_id", type="string", format="uuid", nullable=true),
+ *             @OA\Property(property="local_created_at", type="string", format="date-time", nullable=true)
+ *         )),
+ *         @OA\Response(response=201, description="Incident created", @OA\JsonContent(@OA\Property(property="success", type="boolean", example=true), @OA\Property(property="message", type="string", example="Created"), @OA\Property(property="data", ref="#/components/schemas/Incident"))),
+ *         @OA\Response(response=401, description="Unauthorized", @OA\JsonContent(ref="#/components/schemas/ErrorResponse")),
+ *         @OA\Response(response=422, description="Validation error", @OA\JsonContent(ref="#/components/schemas/ErrorResponse"))
  *     )
  * )
- */
-
-/**
- * @OA\Schema(
- *     schema="IncidentCreate",
- *     title="Create Incident",
- *     description="Request body for creating an incident",
- *     required={"title", "status", "datetime"},
- *     @OA\Property(
- *         property="title",
- *         type="string",
- *         example="Safety incident occurred",
- *         description="Incident title"
- *     ),
- *     @OA\Property(
- *         property="description",
- *         type="string",
- *         example="Detailed description of the incident",
- *         description="Full incident description"
- *     ),
- *     @OA\Property(
- *         property="status",
- *         type="string",
- *         enum={"reported", "under_investigation", "resolved", "closed"},
- *         example="reported"
- *     ),
- *     @OA\Property(
- *         property="classification",
- *         type="string",
- *         enum={"high_risk", "medium_risk", "low_risk"},
- *         example="high_risk"
- *     ),
- *     @OA\Property(
- *         property="location",
- *         type="string",
- *         example="Office Building A"
- *     ),
- *     @OA\Property(
- *         property="datetime",
- *         type="string",
- *         format="date-time",
- *         example="2026-03-28T14:30:00Z"
- *     ),
- *     @OA\Property(
- *         property="temporary_id",
- *         type="string",
- *         example="temp_12345",
- *         description="Temporary ID for offline sync"
- *     ),
- *     @OA\Property(
- *         property="local_created_at",
- *         type="string",
- *         format="date-time",
- *         example="2026-03-28T14:20:00Z",
- *         description="Local creation timestamp (offline)"
- *     )
- * )
- */
-
-/**
- * @OA\Tag(
- *     name="Incident Management",
- *     description="API endpoints for managing incidents"
- * )
- */
-
-/**
- * @OA\Get(
- *     path="/api/incidents",
- *     operationId="listIncidents",
- *     tags={"Incident Management"},
- *     summary="List all incidents",
- *     description="Retrieve a paginated list of incidents. Non-admin users see only their own incidents.",
- *     security={{"bearer_token": {}}},
- *     @OA\Parameter(
- *         name="page",
- *         in="query",
- *         description="Page number for pagination",
- *         required=false,
- *         @OA\Schema(type="integer", example=1)
- *     ),
- *     @OA\Parameter(
- *         name="per_page",
- *         in="query",
- *         description="Number of records per page",
- *         required=false,
- *         @OA\Schema(type="integer", example=15)
- *     ),
- *     @OA\Parameter(
- *         name="status",
- *         in="query",
- *         description="Filter by incident status",
- *         required=false,
- *         @OA\Schema(type="string", enum={"reported", "under_investigation", "resolved", "closed"})
- *     ),
- *     @OA\Parameter(
- *         name="classification",
- *         in="query",
- *         description="Filter by risk classification",
- *         required=false,
- *         @OA\Schema(type="string", enum={"high_risk", "medium_risk", "low_risk"})
- *     ),
- *     @OA\Parameter(
- *         name="search",
- *         in="query",
- *         description="Search in title and description",
- *         required=false,
- *         @OA\Schema(type="string")
- *     ),
- *     @OA\Parameter(
- *         name="from",
- *         in="query",
- *         description="Filter incidents from date (ISO 8601)",
- *         required=false,
- *         @OA\Schema(type="string", format="date-time")
- *     ),
- *     @OA\Parameter(
- *         name="to",
- *         in="query",
- *         description="Filter incidents until date (ISO 8601)",
- *         required=false,
- *         @OA\Schema(type="string", format="date-time")
- *     ),
- *     @OA\Parameter(
- *         name="sort",
- *         in="query",
- *         description="Sort by field",
- *         required=false,
- *         @OA\Schema(type="string", enum={"created_at", "updated_at", "datetime", "title", "classification", "status"})
- *     ),
- *     @OA\Parameter(
- *         name="direction",
- *         in="query",
- *         description="Sort direction (asc/desc)",
- *         required=false,
- *         @OA\Schema(type="string", enum={"asc", "desc"})
- *     ),
- *     @OA\Response(
- *         response=200,
- *         description="Incidents list retrieved",
- *         @OA\JsonContent(
- *             @OA\Property(property="success", type="boolean", example=true),
- *             @OA\Property(property="message", type="string", example="Incidents retrieved"),
- *             @OA\Property(
- *                 property="data",
- *                 type="array",
- *                 @OA\Items(ref="#/components/schemas/Incident")
- *             ),
- *             @OA\Property(
- *                 property="meta",
- *                 ref="#/components/schemas/PaginationMeta"
- *             )
- *         )
- *     ),
- *     @OA\Response(
- *         response=401,
- *         description="Unauthorized",
- *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
- *     )
- * )
- */
-
-/**
- * @OA\Post(
- *     path="/api/incidents",
- *     operationId="createIncident",
- *     tags={"Incident Management"},
- *     summary="Create a new incident",
- *     description="Create a new safety incident. Supports offline sync with temporary_id.",
- *     security={{"bearer_token": {}}},
- *     @OA\RequestBody(
- *         required=true,
- *         @OA\JsonContent(ref="#/components/schemas/IncidentCreate")
- *     ),
- *     @OA\Response(
- *         response=201,
- *         description="Incident created successfully",
- *         @OA\JsonContent(
- *             @OA\Property(property="success", type="boolean", example=true),
- *             @OA\Property(property="message", type="string", example="Incident created"),
- *             @OA\Property(property="data", ref="#/components/schemas/Incident")
- *         )
- *     ),
- *     @OA\Response(
- *         response=401,
- *         description="Unauthorized",
- *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
- *     ),
- *     @OA\Response(
- *         response=422,
- *         description="Validation error",
- *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
- *     )
- * )
- */
-
-/**
- * @OA\Get(
- *     path="/api/incidents/{id}",
- *     operationId="getIncident",
- *     tags={"Incident Management"},
- *     summary="Get incident details",
- *     description="Retrieve detailed information about a specific incident including attachments and comments",
- *     security={{"bearer_token": {}}},
- *     @OA\Parameter(
- *         name="id",
- *         in="path",
- *         description="Incident ID",
- *         required=true,
- *         @OA\Schema(type="integer")
- *     ),
- *     @OA\Response(
- *         response=200,
- *         description="Incident details retrieved",
- *         @OA\JsonContent(
- *             @OA\Property(property="success", type="boolean", example=true),
- *             @OA\Property(property="data", ref="#/components/schemas/Incident")
- *         )
- *     ),
- *     @OA\Response(
- *         response=401,
- *         description="Unauthorized",
- *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
- *     ),
- *     @OA\Response(
- *         response=404,
- *         description="Incident not found",
- *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
- *     )
- * )
- */
-
-/**
- * @OA\Put(
- *     path="/api/incidents/{id}",
- *     operationId="updateIncident",
- *     tags={"Incident Management"},
- *     summary="Update incident",
- *     description="Update an existing incident. Only the reporter or admins can update.",
- *     security={{"bearer_token": {}}},
- *     @OA\Parameter(
- *         name="id",
- *         in="path",
- *         description="Incident ID",
- *         required=true,
- *         @OA\Schema(type="integer")
- *     ),
- *     @OA\RequestBody(
- *         required=true,
- *         @OA\JsonContent(ref="#/components/schemas/IncidentCreate")
- *     ),
- *     @OA\Response(
- *         response=200,
- *         description="Incident updated successfully",
- *         @OA\JsonContent(
- *             @OA\Property(property="success", type="boolean", example=true),
- *             @OA\Property(property="message", type="string", example="Incident updated"),
- *             @OA\Property(property="data", ref="#/components/schemas/Incident")
- *         )
- *     ),
- *     @OA\Response(
- *         response=401,
- *         description="Unauthorized",
- *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
- *     ),
- *     @OA\Response(
- *         response=403,
- *         description="Forbidden - Cannot update",
- *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
- *     ),
- *     @OA\Response(
- *         response=404,
- *         description="Incident not found",
- *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
- *     )
- * )
- */
-
-/**
- * @OA\Delete(
- *     path="/api/incidents/{id}",
- *     operationId="deleteIncident",
- *     tags={"Incident Management"},
- *     summary="Delete incident",
- *     description="Soft delete an incident. Only admins can delete incidents.",
- *     security={{"bearer_token": {}}},
- *     @OA\Parameter(
- *         name="id",
- *         in="path",
- *         description="Incident ID",
- *         required=true,
- *         @OA\Schema(type="integer")
- *     ),
- *     @OA\Response(
- *         response=200,
- *         description="Incident deleted successfully",
- *         @OA\JsonContent(
- *             @OA\Property(property="success", type="boolean", example=true),
- *             @OA\Property(property="message", type="string", example="Incident deleted")
- *         )
- *     ),
- *     @OA\Response(
- *         response=401,
- *         description="Unauthorized",
- *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
- *     ),
- *     @OA\Response(
- *         response=403,
- *         description="Forbidden - Admin only",
- *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
- *     ),
- *     @OA\Response(
- *         response=404,
- *         description="Incident not found",
- *         @OA\JsonContent(ref="#/components/schemas/ErrorResponse")
- *     )
+ *
+ * @OA\PathItem(
+ *     path="/api/v1/incidents/{incident}",
+ *     @OA\Parameter(name="incident", in="path", required=true, @OA\Schema(type="integer", example=128)),
+ *     @OA\Get(tags={"Incidents"}, operationId="v1IncidentsShow", summary="Show incident", security={{"bearer_token": {}}}, @OA\Response(response=200, description="Incident details", @OA\JsonContent(@OA\Property(property="success", type="boolean", example=true), @OA\Property(property="message", type="string", example="Success"), @OA\Property(property="data", ref="#/components/schemas/Incident"))), @OA\Response(response=401, description="Unauthorized", @OA\JsonContent(ref="#/components/schemas/ErrorResponse")), @OA\Response(response=404, description="Resource not found", @OA\JsonContent(ref="#/components/schemas/ErrorResponse"))),
+ *     @OA\Put(tags={"Incidents"}, operationId="v1IncidentsUpdate", summary="Update incident", security={{"bearer_token": {}}}, @OA\RequestBody(required=true, @OA\JsonContent(@OA\Property(property="title", type="string"), @OA\Property(property="incident_description", type="string", nullable=true), @OA\Property(property="classification_id", type="integer", nullable=true), @OA\Property(property="status", type="string", nullable=true))), @OA\Response(response=200, description="Incident updated", @OA\JsonContent(@OA\Property(property="success", type="boolean", example=true), @OA\Property(property="message", type="string", example="Updated"), @OA\Property(property="data", ref="#/components/schemas/Incident"))), @OA\Response(response=401, description="Unauthorized", @OA\JsonContent(ref="#/components/schemas/ErrorResponse")), @OA\Response(response=404, description="Resource not found", @OA\JsonContent(ref="#/components/schemas/ErrorResponse")), @OA\Response(response=422, description="Validation error", @OA\JsonContent(ref="#/components/schemas/ErrorResponse"))),
+ *     @OA\Delete(tags={"Incidents"}, operationId="v1IncidentsDelete", summary="Delete incident", security={{"bearer_token": {}}}, @OA\Response(response=200, description="Incident deleted", @OA\JsonContent(@OA\Property(property="success", type="boolean", example=true), @OA\Property(property="message", type="string", example="Deleted"), @OA\Property(property="data", type="object", nullable=true))), @OA\Response(response=401, description="Unauthorized", @OA\JsonContent(ref="#/components/schemas/ErrorResponse")), @OA\Response(response=404, description="Resource not found", @OA\JsonContent(ref="#/components/schemas/ErrorResponse")))
  * )
  */
 class IncidentEndpoints
 {
-    // This class is used for incident endpoint documentation only
+    // Incident endpoint annotation carrier.
 }
