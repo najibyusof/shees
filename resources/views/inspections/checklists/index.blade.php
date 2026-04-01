@@ -3,7 +3,9 @@
 @section('header')
     <x-ui.page-header title="Inspection Checklists" subtitle="Build reusable checklist templates for inspections.">
         <x-slot:actions>
-            <x-ui.button :href="route('inspection-checklists.create')" variant="primary" size="md">Create Checklist</x-ui.button>
+            @can('create', \App\Models\InspectionChecklist::class)
+                <x-ui.button :href="route('inspection-checklists.create')" variant="primary" size="md">Create Checklist</x-ui.button>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 @endsection
@@ -40,8 +42,12 @@
                         </td>
                         <td class="px-4 py-3 text-right">
                             <div class="inline-flex items-center gap-1">
-                                <x-ui.button :href="route('inspection-checklists.show', $checklist)" variant="ghost" size="sm">View</x-ui.button>
-                                <x-ui.button :href="route('inspection-checklists.edit', $checklist)" variant="secondary" size="sm">Edit</x-ui.button>
+                                @can('view', $checklist)
+                                    <x-ui.button :href="route('inspection-checklists.show', $checklist)" variant="ghost" size="sm">View</x-ui.button>
+                                @endcan
+                                @can('update', $checklist)
+                                    <x-ui.button :href="route('inspection-checklists.edit', $checklist)" variant="secondary" size="sm">Edit</x-ui.button>
+                                @endcan
                             </div>
                         </td>
                     </tr>

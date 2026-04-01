@@ -156,6 +156,8 @@ class SiteAuditController extends Controller
 
     public function submit(SubmitSiteAuditRequest $request, SiteAudit $siteAudit): RedirectResponse
     {
+        $this->authorize('submit', $siteAudit);
+
         $this->siteAuditService->submitForApproval($siteAudit, $request->user());
 
         return redirect()->route('site-audits.show', $siteAudit)->with('toast', [
@@ -167,6 +169,8 @@ class SiteAuditController extends Controller
 
     public function storeKpi(StoreSiteAuditKpiRequest $request, SiteAudit $siteAudit): RedirectResponse
     {
+        $this->authorize('manageKpi', $siteAudit);
+
         $validated = $request->validated();
 
         $this->siteAuditService->addKpi($siteAudit, $validated);
@@ -180,6 +184,8 @@ class SiteAuditController extends Controller
 
     public function approve(ApproveSiteAuditRequest $request, SiteAudit $siteAudit): RedirectResponse
     {
+        $this->authorize('approve', $siteAudit);
+
         $validated = $request->validated();
 
         $this->siteAuditService->approve($siteAudit, $request->user(), $validated['remarks'] ?? null);
@@ -193,6 +199,8 @@ class SiteAuditController extends Controller
 
     public function reject(RejectSiteAuditRequest $request, SiteAudit $siteAudit): RedirectResponse
     {
+        $this->authorize('reject', $siteAudit);
+
         $validated = $request->validated();
 
         $this->siteAuditService->reject($siteAudit, $request->user(), $validated['reason']);
@@ -227,8 +235,10 @@ class SiteAuditController extends Controller
             ]);
         }
 
+        $targetAbility = $validated['action'] === 'delete' ? 'delete' : 'update';
+
         $updatableIds = $audits
-            ->filter(fn (SiteAudit $siteAudit) => $request->user()->can('update', $siteAudit))
+            ->filter(fn (SiteAudit $siteAudit) => $request->user()->can($targetAbility, $siteAudit))
             ->pluck('id')
             ->all();
 

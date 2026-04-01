@@ -72,19 +72,21 @@
         </x-ui.card>
 
         <x-ui.card title="KPI Tracking" subtitle="Define measurable KPIs and monitor actual vs target performance.">
-            <form method="POST" action="{{ route('site-audits.kpis.store', $siteAudit) }}"
-                class="grid gap-3 md:grid-cols-6">
-                @csrf
-                <input type="text" name="name" required placeholder="KPI name"
-                    class="md:col-span-2 rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
-                <input type="number" step="0.01" name="target_value" placeholder="Target"
-                    class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
-                <input type="number" step="0.01" name="actual_value" placeholder="Actual"
-                    class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
-                <input type="number" name="weight" min="1" max="10" value="1"
-                    class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
-                <x-ui.button type="submit" variant="primary" size="sm">Add KPI</x-ui.button>
-            </form>
+            @can('manageKpi', $siteAudit)
+                <form method="POST" action="{{ route('site-audits.kpis.store', $siteAudit) }}"
+                    class="grid gap-3 md:grid-cols-6">
+                    @csrf
+                    <input type="text" name="name" required placeholder="KPI name"
+                        class="md:col-span-2 rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
+                    <input type="number" step="0.01" name="target_value" placeholder="Target"
+                        class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
+                    <input type="number" step="0.01" name="actual_value" placeholder="Actual"
+                        class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
+                    <input type="number" name="weight" min="1" max="10" value="1"
+                        class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
+                    <x-ui.button type="submit" variant="primary" size="sm">Add KPI</x-ui.button>
+                </form>
+            @endcan
 
             @if ($siteAudit->kpis->count() > 0)
                 <x-ui.table class="mt-4">
@@ -113,26 +115,28 @@
 
         <x-ui.card title="NCR & Root Cause Analysis"
             subtitle="Capture non-conformance details and corrective action plans.">
-            <form method="POST" action="{{ route('site-audits.ncrs.store', $siteAudit) }}"
-                class="grid gap-3 md:grid-cols-2">
-                @csrf
-                <input type="text" name="title" required placeholder="NCR title"
-                    class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
-                <select name="severity" class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text">
-                    <option value="minor">Minor</option>
-                    <option value="major">Major</option>
-                    <option value="critical">Critical</option>
-                </select>
-                <textarea name="description" rows="2" required placeholder="Non-conformance details"
-                    class="md:col-span-2 rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text"></textarea>
-                <textarea name="root_cause" rows="2" placeholder="Root cause analysis"
-                    class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text"></textarea>
-                <textarea name="corrective_action_plan" rows="2" placeholder="Corrective action plan"
-                    class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text"></textarea>
-                <div class="md:col-span-2">
-                    <x-ui.button type="submit" variant="primary" size="sm">Add NCR</x-ui.button>
-                </div>
-            </form>
+            @can('createNcr', $siteAudit)
+                <form method="POST" action="{{ route('site-audits.ncrs.store', $siteAudit) }}"
+                    class="grid gap-3 md:grid-cols-2">
+                    @csrf
+                    <input type="text" name="title" required placeholder="NCR title"
+                        class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
+                    <select name="severity" class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text">
+                        <option value="minor">Minor</option>
+                        <option value="major">Major</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                    <textarea name="description" rows="2" required placeholder="Non-conformance details"
+                        class="md:col-span-2 rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text"></textarea>
+                    <textarea name="root_cause" rows="2" placeholder="Root cause analysis"
+                        class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text"></textarea>
+                    <textarea name="corrective_action_plan" rows="2" placeholder="Corrective action plan"
+                        class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text"></textarea>
+                    <div class="md:col-span-2">
+                        <x-ui.button type="submit" variant="primary" size="sm">Add NCR</x-ui.button>
+                    </div>
+                </form>
+            @endcan
 
             <div class="mt-5 space-y-4">
                 @forelse ($siteAudit->ncrReports as $ncr)
@@ -140,7 +144,11 @@
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <p class="font-semibold ui-text">{{ $ncr->reference_no }} - {{ $ncr->title }}</p>
                             <div class="flex items-center gap-2">
-                                <x-ui.badge :variant="match ($ncr->severity) { 'critical' => 'error', 'major' => 'warning', default => 'info' }">{{ ucfirst($ncr->severity) }}</x-ui.badge>
+                                <x-ui.badge :variant="match ($ncr->severity) {
+                                    'critical' => 'error',
+                                    'major' => 'warning',
+                                    default => 'info',
+                                }">{{ ucfirst($ncr->severity) }}</x-ui.badge>
                                 <x-ui.status-badge :status="$ncr->status === 'pending_verification' ? 'under_review' : $ncr->status" />
                             </div>
                         </div>
@@ -149,17 +157,19 @@
                         <p class="text-sm ui-text"><strong>Corrective Plan:</strong>
                             {{ $ncr->corrective_action_plan ?: 'N/A' }}</p>
 
-                        <form method="POST" action="{{ route('ncr-reports.corrective-actions.store', $ncr) }}"
-                            class="mt-3 grid gap-2 md:grid-cols-3">
-                            @csrf
-                            <input type="text" name="title" required placeholder="Corrective action title"
-                                class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
-                            <input type="date" name="due_date"
-                                class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
-                            <x-ui.button type="submit" variant="secondary" size="sm">Add Action</x-ui.button>
-                            <textarea name="description" rows="2" required placeholder="Action description"
-                                class="md:col-span-3 rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text"></textarea>
-                        </form>
+                        @can('createCorrectiveAction', $siteAudit)
+                            <form method="POST" action="{{ route('ncr-reports.corrective-actions.store', $ncr) }}"
+                                class="mt-3 grid gap-2 md:grid-cols-3">
+                                @csrf
+                                <input type="text" name="title" required placeholder="Corrective action title"
+                                    class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
+                                <input type="date" name="due_date"
+                                    class="rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text" />
+                                <x-ui.button type="submit" variant="secondary" size="sm">Add Action</x-ui.button>
+                                <textarea name="description" rows="2" required placeholder="Action description"
+                                    class="md:col-span-3 rounded-lg border ui-border px-3 py-2.5 text-sm ui-surface ui-text"></textarea>
+                            </form>
+                        @endcan
 
                         @if ($ncr->correctiveActions->count() > 0)
                             <ul class="mt-3 space-y-2">
@@ -187,7 +197,8 @@
                     @foreach ($siteAudit->approvals as $approval)
                         <li class="rounded-lg border ui-border p-3 text-sm">
                             <p class="font-medium ui-text">{{ $approval->approver?->name ?? 'Unknown' }}
-                                ({{ $approval->approver_role }})</p>
+                                ({{ $approval->approver_role }})
+                            </p>
                             <p class="ui-text-muted">{{ optional($approval->decided_at)->format('Y-m-d H:i') }} -
                                 {{ ucfirst($approval->decision) }}</p>
                             @if ($approval->remarks)

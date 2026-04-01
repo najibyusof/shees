@@ -15,15 +15,20 @@ class UserApiController extends Controller
 {
     use ApiResponse;
 
+    public function __construct()
+    {
+        $this->authorizeResource(User::class, 'user');
+        $this->middleware('permission:view_user_management')->only(['index', 'show']);
+        $this->middleware('permission:create_user_management')->only(['store']);
+        $this->middleware('permission:edit_user_management')->only(['update']);
+        $this->middleware('permission:delete_user_management')->only(['destroy']);
+    }
+
     /**
      * GET /api/v1/users
      */
     public function index(Request $request): JsonResponse
     {
-        if (! $request->user()->hasAnyRole(['Admin', 'Manager'])) {
-            return $this->forbidden();
-        }
-
         $query = User::with('roles')
             ->when($request->filled('search'), fn ($q) => $q->search($request->query('search')))
             ->when($request->filled('role'), fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('slug', $request->query('role'))));
@@ -44,10 +49,6 @@ class UserApiController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        if (! $request->user()->hasRole('Admin')) {
-            return $this->forbidden();
-        }
-
         $validated = $request->validate([
             'name'     => ['required', 'string', 'max:255'],
             'email'    => ['required', 'email', 'unique:users,email'],
@@ -74,10 +75,6 @@ class UserApiController extends Controller
      */
     public function show(Request $request, User $user): JsonResponse
     {
-        if (! $request->user()->hasAnyRole(['Admin', 'Manager'])) {
-            return $this->forbidden();
-        }
-
         $user->load('roles.permissions');
 
         return $this->success(new UserResource($user));
@@ -88,9 +85,7 @@ class UserApiController extends Controller
      */
     public function update(Request $request, User $user): JsonResponse
     {
-        if (! $request->user()->hasRole('Admin')) {
-            return $this->forbidden();
-        }
+        $this->authorize('update', $user);
 
         $validated = $request->validate([
             'name'      => ['sometimes', 'required', 'string', 'max:255'],
@@ -119,10 +114,7 @@ class UserApiController extends Controller
     public function destroy(Request $request, User $user): JsonResponse
     {
         $actor = $request->user();
-
-        if (! $actor->hasRole('Admin')) {
-            return $this->forbidden();
-        }
+        $this->authorize('delete', $user);
 
         if ($user->isProtectedAccount()) {
             return $this->error('This account cannot be deleted.', null, 403);

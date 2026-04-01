@@ -48,7 +48,7 @@ use OpenAPI\Annotations as OA;
  *             "bearer_token"=@OA\SecurityScheme(
  *                 securityScheme="bearer_token",
  *                 type="http",
- *                 description="Laravel Sanctum bearer token. Obtain token from /api/v1/auth/login and authorize using: Bearer {token}",
+ *                 description="Bearer token auth. Use data.dashboard_token (Sanctum) for /api/dashboard endpoints, and data.token for mobile token middleware endpoints.",
  *                 name="bearer_token",
  *                 in="header",
  *                 scheme="bearer",

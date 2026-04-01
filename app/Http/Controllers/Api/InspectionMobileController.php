@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\InspectionExecutionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class InspectionMobileController extends Controller
 {
@@ -16,6 +17,8 @@ class InspectionMobileController extends Controller
 
     public function checklists(Request $request): JsonResponse
     {
+        Gate::authorize('viewAny', InspectionChecklist::class);
+
         $query = InspectionChecklist::query()
             ->with('items')
             ->where('is_active', true)
@@ -32,6 +35,8 @@ class InspectionMobileController extends Controller
 
     public function start(Request $request): JsonResponse
     {
+        Gate::authorize('create', Inspection::class);
+
         $validated = $request->validate([
             'inspection_checklist_id' => ['required', 'integer', 'exists:inspection_checklists,id'],
             'location' => ['nullable', 'string', 'max:255'],
@@ -49,6 +54,7 @@ class InspectionMobileController extends Controller
 
     public function show(Inspection $inspection): JsonResponse
     {
+        $this->authorize('view', $inspection);
         $this->authorizeInspectionOwner($inspection->inspector_id, request()->user());
 
         return response()->json([
@@ -58,6 +64,7 @@ class InspectionMobileController extends Controller
 
     public function updateResponses(Request $request, Inspection $inspection): JsonResponse
     {
+        $this->authorize('update', $inspection);
         $this->authorizeInspectionOwner($inspection->inspector_id, $request->user());
 
         $validated = $request->validate([
@@ -89,6 +96,7 @@ class InspectionMobileController extends Controller
 
     public function submit(Inspection $inspection): JsonResponse
     {
+        $this->authorize('update', $inspection);
         $this->authorizeInspectionOwner($inspection->inspector_id, request()->user());
 
         return response()->json([

@@ -1,92 +1,129 @@
 @php
     $user = Auth::user();
+    $roleLabel = $user?->roles?->pluck('name')?->join(', ') ?: 'User';
+
     $menu = [
         [
             'label' => 'Main',
             'items' => [
-                ['title' => 'Dashboard', 'route' => 'dashboard', 'icon' => 'dashboard'],
+                [
+                    'title' => 'Dashboard',
+                    'route' => 'dashboard',
+                    'icon' => 'dashboard',
+                    'permission' => 'view_dashboard',
+                ],
                 ['title' => 'Profile', 'route' => 'profile.edit', 'icon' => 'profile'],
+            ],
+        ],
+        [
+            'label' => 'Incident',
+            'can_any' => ['view_incident', 'create_incident', 'review_incident', 'approve_final'],
+            'items' => [
                 [
                     'title' => 'Incidents',
                     'route' => 'incidents.index',
                     'active_pattern' => 'incidents.*',
-                    'roles' => ['Admin', 'Manager', 'Safety Officer', 'Auditor', 'Supervisor', 'Worker'],
+                    'permission' => 'view_incident',
                     'icon' => 'incident',
                 ],
+            ],
+        ],
+        [
+            'label' => 'Training',
+            'can_any' => ['view_training', 'create_training', 'edit_training', 'approve_training'],
+            'items' => [
                 [
                     'title' => 'Trainings',
                     'route' => 'trainings.index',
                     'active_pattern' => 'trainings.*',
-                    'roles' => ['Admin', 'Manager', 'Safety Officer', 'Auditor', 'Supervisor', 'Worker'],
+                    'permission' => 'view_training',
                     'icon' => 'training',
+                ],
+            ],
+        ],
+        [
+            'label' => 'Audit',
+            'can_any' => ['view_audit', 'create_audit', 'edit_audit', 'approve_audit'],
+            'items' => [
+                [
+                    'title' => 'Site Audits',
+                    'route' => 'site-audits.index',
+                    'active_pattern' => 'site-audits.*',
+                    'permission' => 'view_audit',
+                    'icon' => 'audit',
                 ],
                 [
                     'title' => 'Inspection Checklists',
                     'route' => 'inspection-checklists.index',
                     'active_pattern' => 'inspection-checklists.*',
-                    'roles' => ['Admin', 'Manager', 'Safety Officer', 'Auditor', 'Supervisor', 'Worker'],
+                    'permission' => 'view_audit',
                     'icon' => 'checklist',
                 ],
                 [
                     'title' => 'Inspections',
                     'route' => 'inspections.index',
                     'active_pattern' => 'inspections.*',
-                    'roles' => ['Admin', 'Manager', 'Safety Officer', 'Auditor', 'Supervisor', 'Worker'],
+                    'permission' => 'view_audit',
                     'icon' => 'inspection',
                 ],
-                [
-                    'title' => 'Site Audits',
-                    'route' => 'site-audits.index',
-                    'active_pattern' => 'site-audits.*',
-                    'roles' => ['Admin', 'Manager', 'Safety Officer', 'Auditor', 'Supervisor', 'Worker'],
-                    'icon' => 'audit',
-                ],
+            ],
+        ],
+        [
+            'label' => 'Worker',
+            'can_any' => ['view_worker', 'create_worker', 'edit_worker', 'approve_worker'],
+            'items' => [
                 [
                     'title' => 'Worker Tracking',
                     'route' => 'worker-tracking.ui.index',
                     'active_pattern' => 'worker-tracking.ui.*',
-                    'roles' => ['Admin', 'Manager', 'Safety Officer', 'Auditor', 'Supervisor', 'Worker'],
+                    'permission' => 'view_worker',
                     'icon' => 'profile',
                 ],
+            ],
+        ],
+        [
+            'label' => 'Reports',
+            'can_any' => ['view_report'],
+            'items' => [
                 [
                     'title' => 'Reports',
                     'route' => 'reports.index',
                     'active_pattern' => 'reports.*',
-                    'permission' => 'reports.view',
+                    'permission' => 'view_report',
+                    'icon' => 'audit',
+                ],
+                [
+                    'title' => 'Audit Logs',
+                    'route' => 'audit.logs',
+                    'active_pattern' => 'audit.logs*',
+                    'permission' => 'view_audit',
                     'icon' => 'audit',
                 ],
             ],
         ],
         [
-            'label' => 'Administration',
+            'label' => 'Admin',
+            'can_any' => ['view_user_management', 'roles.manage'],
             'items' => [
                 [
                     'title' => 'User Management',
                     'route' => 'admin.users',
                     'active_pattern' => 'admin.users*',
-                    'roles' => ['Admin', 'Manager'],
+                    'permission' => 'view_user_management',
                     'icon' => 'users',
                 ],
                 [
                     'title' => 'Roles & Permissions',
                     'route' => 'admin.roles',
                     'active_pattern' => 'admin.roles*',
-                    'roles' => ['Admin'],
                     'permission' => 'roles.manage',
                     'icon' => 'checklist',
-                ],
-                [
-                    'title' => 'Audit Logs',
-                    'route' => 'audit.logs',
-                    'active_pattern' => 'audit.logs*',
-                    'permission' => 'audits.view',
-                    'icon' => 'audit',
                 ],
                 [
                     'title' => 'Workflow Settings',
                     'route' => 'admin.settings.incident-workflow',
                     'active_pattern' => 'admin.settings*',
-                    'roles' => ['Admin'],
+                    'permission' => 'roles.manage',
                     'icon' => 'checklist',
                 ],
             ],
@@ -102,38 +139,65 @@
 
     <div class="flex-1 overflow-y-auto pr-1">
         @foreach ($menu as $section)
-            <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] ui-sidebar-muted">
-                {{ $section['label'] }}</p>
+            @if (isset($section['can_any']))
+                @canany($section['can_any'])
+                    <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] ui-sidebar-muted">
+                        {{ $section['label'] }}</p>
 
-            <ul class="mb-5 space-y-1 last:mb-0">
-                @foreach ($section['items'] as $item)
-                    @php
-                        $visible = true;
+                    <ul class="mb-5 space-y-1 last:mb-0">
+                        @foreach ($section['items'] as $item)
+                            @php
+                                $isActive = isset($item['active_pattern'])
+                                    ? request()->routeIs($item['active_pattern'])
+                                    : request()->routeIs($item['route']);
+                            @endphp
 
-                        if (isset($item['roles'])) {
-                            $visible = $user && $user->hasAnyRole($item['roles']);
-                        }
+                            @can($item['permission'])
+                                <li>
+                                    <a href="{{ route($item['route']) }}"
+                                        class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition {{ $isActive ? 'ui-sidebar-active ui-sidebar-text shadow-sm shadow-black/10' : 'ui-sidebar-muted hover:bg-white/10 hover:text-white' }}">
+                                        <x-ui.icon :name="$item['icon'] ?? 'circle'" class="h-4 w-4" />
+                                        <span>{{ $item['title'] }}</span>
+                                    </a>
+                                </li>
+                            @endcan
+                        @endforeach
+                    </ul>
+                @endcanany
+            @else
+                <p class="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] ui-sidebar-muted">
+                    {{ $section['label'] }}</p>
 
-                        if ($visible && isset($item['permission'])) {
-                            $visible = $user && $user->hasPermissionTo($item['permission']);
-                        }
+                <ul class="mb-5 space-y-1 last:mb-0">
+                    @foreach ($section['items'] as $item)
+                        @php
+                            $isActive = isset($item['active_pattern'])
+                                ? request()->routeIs($item['active_pattern'])
+                                : request()->routeIs($item['route']);
+                        @endphp
 
-                        $isActive = isset($item['active_pattern'])
-                            ? request()->routeIs($item['active_pattern'])
-                            : request()->routeIs($item['route']);
-                    @endphp
-
-                    @if ($visible)
-                        <li>
-                            <a href="{{ route($item['route']) }}"
-                                class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition {{ $isActive ? 'ui-sidebar-active ui-sidebar-text shadow-sm shadow-black/10' : 'ui-sidebar-muted hover:bg-white/10 hover:text-white' }}">
-                                <x-ui.icon :name="$item['icon'] ?? 'circle'" class="h-4 w-4" />
-                                <span>{{ $item['title'] }}</span>
-                            </a>
-                        </li>
-                    @endif
-                @endforeach
-            </ul>
+                        @if (isset($item['permission']))
+                            @can($item['permission'])
+                                <li>
+                                    <a href="{{ route($item['route']) }}"
+                                        class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition {{ $isActive ? 'ui-sidebar-active ui-sidebar-text shadow-sm shadow-black/10' : 'ui-sidebar-muted hover:bg-white/10 hover:text-white' }}">
+                                        <x-ui.icon :name="$item['icon'] ?? 'circle'" class="h-4 w-4" />
+                                        <span>{{ $item['title'] }}</span>
+                                    </a>
+                                </li>
+                            @endcan
+                        @else
+                            <li>
+                                <a href="{{ route($item['route']) }}"
+                                    class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition {{ $isActive ? 'ui-sidebar-active ui-sidebar-text shadow-sm shadow-black/10' : 'ui-sidebar-muted hover:bg-white/10 hover:text-white' }}">
+                                    <x-ui.icon :name="$item['icon'] ?? 'circle'" class="h-4 w-4" />
+                                    <span>{{ $item['title'] }}</span>
+                                </a>
+                            </li>
+                        @endif
+                    @endforeach
+                </ul>
+            @endif
         @endforeach
     </div>
 
@@ -141,7 +205,7 @@
         <div class="mt-4 rounded-xl ui-sidebar-surface px-3 py-3">
             <p class="text-xs font-semibold ui-sidebar-text">{{ $user->name }}</p>
             <p class="text-[11px] uppercase tracking-[0.14em] ui-sidebar-muted">
-                {{ $user->getRoleNames()->first() ?? 'User' }}</p>
+                {{ $roleLabel }}</p>
         </div>
     @endif
 </div>

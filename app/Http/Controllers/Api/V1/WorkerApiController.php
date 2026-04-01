@@ -20,6 +20,11 @@ class WorkerApiController extends Controller
 
     public function __construct(private readonly WorkerTrackingService $workerTrackingService)
     {
+        $this->authorizeResource(Worker::class, 'worker');
+        $this->middleware('permission:view_worker')->only(['index', 'show']);
+        $this->middleware('permission:create_worker')->only(['store']);
+        $this->middleware('permission:edit_worker')->only(['update']);
+        $this->middleware('permission:approve_worker')->only(['destroy']);
     }
 
     /**
@@ -27,12 +32,14 @@ class WorkerApiController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        if (! $request->user()->hasAnyRole(['Admin', 'Manager', 'Safety Officer'])) {
-            return $this->forbidden();
-        }
+        $user = $request->user();
 
         $query = Worker::withTrashed()
             ->with('user')
+            ->when(
+                ! $user->hasPermissionTo('edit_worker') && ! $user->hasPermissionTo('approve_worker'),
+                fn ($q) => $q->where('user_id', $user->id)
+            )
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
             ->when($request->filled('department'), fn ($q) => $q->where('department', $request->query('department')))
             ->when($request->filled('search'), fn ($q) => $q->where(function ($q2) use ($request) {
@@ -76,6 +83,8 @@ class WorkerApiController extends Controller
      */
     public function update(UpdateWorkerApiRequest $request, Worker $worker): JsonResponse
     {
+        $this->authorize('update', $worker);
+
         $worker = $this->workerTrackingService->updateWorker($worker, $request->validated());
 
         return $this->success(new WorkerResource($worker->load('user')));
@@ -86,9 +95,7 @@ class WorkerApiController extends Controller
      */
     public function destroy(Request $request, Worker $worker): JsonResponse
     {
-        if (! $request->user()->hasAnyRole(['Admin', 'Manager'])) {
-            return $this->forbidden();
-        }
+        $this->authorize('delete', $worker);
 
         $worker->delete();
 
@@ -102,6 +109,8 @@ class WorkerApiController extends Controller
      */
     public function logAttendance(LogAttendanceApiRequest $request, Worker $worker): JsonResponse
     {
+        $this->authorize('logAttendance', $worker);
+
         $data = $request->validated();
 
         $log = $this->workerTrackingService->logAttendance($worker, $data, $request->user());

@@ -487,6 +487,50 @@
                                             "example": "Login successful."
                                         },
                                         "data": {
+                                            "properties": {
+                                                "token": {
+                                                    "type": "string",
+                                                    "example": "token_value_here"
+                                                },
+                                                "token_type": {
+                                                    "type": "string",
+                                                    "example": "Bearer"
+                                                },
+                                                "dashboard_token": {
+                                                    "type": "string",
+                                                    "example": "1|sanctum_dashboard_token_here"
+                                                },
+                                                "session_id": {
+                                                    "type": "integer",
+                                                    "example": 12
+                                                },
+                                                "device_name": {
+                                                    "type": "string",
+                                                    "example": "Samsung S24"
+                                                },
+                                                "expires_at": {
+                                                    "type": "string",
+                                                    "format": "date-time",
+                                                    "nullable": true
+                                                },
+                                                "user": {
+                                                    "$ref": "#/components/schemas/User"
+                                                },
+                                                "roles": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "Manager"
+                                                    }
+                                                },
+                                                "permissions": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string",
+                                                        "example": "view_incident"
+                                                    }
+                                                }
+                                            },
                                             "type": "object"
                                         }
                                     },
@@ -583,6 +627,107 @@
                                         },
                                         "data": {
                                             "$ref": "#/components/schemas/User"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ]
+            }
+        },
+        "/api/dashboard": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get role-based dashboard widgets",
+                "description": "Returns dashboard widgets based on authenticated user's role and permissions. Requires Sanctum bearer token from login response dashboard_token.",
+                "operationId": "dashboardOverview",
+                "responses": {
+                    "200": {
+                        "description": "Dashboard loaded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Dashboard loaded successfully."
+                                        },
+                                        "data": {
+                                            "$ref": "#/components/schemas/DashboardResponse"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer_token": []
+                    }
+                ]
+            }
+        },
+        "/api/dashboard/logout": {
+            "post": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Revoke dashboard session token",
+                "description": "Revokes the currently authenticated Sanctum dashboard token.",
+                "operationId": "dashboardLogout",
+                "responses": {
+                    "200": {
+                        "description": "Dashboard session revoked",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Dashboard session revoked."
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "nullable": true
                                         }
                                     },
                                     "type": "object"
@@ -856,6 +1001,58 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "name": "from",
+                        "in": "query",
+                        "description": "Filter incidents with datetime greater than or equal to this value",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "to",
+                        "in": "query",
+                        "description": "Filter incidents with datetime less than or equal to this value",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "sort",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "created_at",
+                                "updated_at",
+                                "datetime",
+                                "title",
+                                "classification",
+                                "status"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "direction",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "asc",
+                                "desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "example": 15
+                        }
                     }
                 ],
                 "responses": {
@@ -878,6 +1075,9 @@
                                             "items": {
                                                 "$ref": "#/components/schemas/Incident"
                                             }
+                                        },
+                                        "meta": {
+                                            "$ref": "#/components/schemas/PaginationMeta"
                                         }
                                     },
                                     "type": "object"
@@ -913,61 +1113,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "required": [
-                                    "title",
-                                    "incident_type_id",
-                                    "incident_date",
-                                    "incident_time",
-                                    "work_package_id",
-                                    "location_type_id",
-                                    "classification_id",
-                                    "incident_description"
-                                ],
-                                "properties": {
-                                    "title": {
-                                        "type": "string",
-                                        "example": "Forklift collision near loading dock"
-                                    },
-                                    "incident_type_id": {
-                                        "type": "integer",
-                                        "example": 2
-                                    },
-                                    "incident_date": {
-                                        "type": "string",
-                                        "format": "date",
-                                        "example": "2026-01-15"
-                                    },
-                                    "incident_time": {
-                                        "type": "string",
-                                        "example": "13:45"
-                                    },
-                                    "work_package_id": {
-                                        "type": "integer",
-                                        "example": 3
-                                    },
-                                    "location_type_id": {
-                                        "type": "integer",
-                                        "example": 1
-                                    },
-                                    "classification_id": {
-                                        "type": "integer",
-                                        "example": 2
-                                    },
-                                    "incident_description": {
-                                        "type": "string"
-                                    },
-                                    "temporary_id": {
-                                        "type": "string",
-                                        "format": "uuid",
-                                        "nullable": true
-                                    },
-                                    "local_created_at": {
-                                        "type": "string",
-                                        "format": "date-time",
-                                        "nullable": true
-                                    }
-                                },
-                                "type": "object"
+                                "$ref": "#/components/schemas/IncidentStoreRequest"
                             }
                         }
                     }
@@ -1093,24 +1239,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "properties": {
-                                    "title": {
-                                        "type": "string"
-                                    },
-                                    "incident_description": {
-                                        "type": "string",
-                                        "nullable": true
-                                    },
-                                    "classification_id": {
-                                        "type": "integer",
-                                        "nullable": true
-                                    },
-                                    "status": {
-                                        "type": "string",
-                                        "nullable": true
-                                    }
-                                },
-                                "type": "object"
+                                "$ref": "#/components/schemas/IncidentUpdateRequest"
                             }
                         }
                     }
@@ -1128,7 +1257,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Updated"
+                                            "example": "Success"
                                         },
                                         "data": {
                                             "$ref": "#/components/schemas/Incident"
@@ -1141,6 +1270,16 @@
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1195,11 +1334,7 @@
                                         },
                                         "message": {
                                             "type": "string",
-                                            "example": "Deleted"
-                                        },
-                                        "data": {
-                                            "type": "object",
-                                            "nullable": true
+                                            "example": "Incident deleted."
                                         }
                                     },
                                     "type": "object"
@@ -1209,6 +1344,16 @@
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1275,11 +1420,21 @@
                                 "properties": {
                                     "to_status": {
                                         "type": "string",
-                                        "example": "in_review"
+                                        "example": "draft_submitted",
+                                        "enum": [
+                                            "draft",
+                                            "draft_submitted",
+                                            "draft_reviewed",
+                                            "final_submitted",
+                                            "final_reviewed",
+                                            "pending_closure",
+                                            "closed"
+                                        ]
                                     },
                                     "remarks": {
                                         "type": "string",
-                                        "nullable": true
+                                        "nullable": true,
+                                        "maxLength": 2000
                                     }
                                 },
                                 "type": "object"
@@ -1293,26 +1448,23 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Incident transitioned."
-                                        },
-                                        "data": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/IncidentTransitionResponse"
                                 }
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1401,26 +1553,23 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Comment added."
-                                        },
-                                        "data": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/IncidentCommentCreateResponse"
                                 }
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1481,29 +1630,23 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Success"
-                                        },
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "object"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/IncidentAllowedTransitionsResponse"
                                 }
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1559,7 +1702,8 @@
                                 "properties": {
                                     "reply": {
                                         "type": "string",
-                                        "example": "Attached witness statement."
+                                        "example": "Attached witness statement.",
+                                        "maxLength": 2000
                                     }
                                 },
                                 "type": "object"
@@ -1573,26 +1717,23 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Reply added."
-                                        },
-                                        "data": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/IncidentReplyCreateResponse"
                                 }
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -1662,7 +1803,8 @@
                                     },
                                     "resolution_note": {
                                         "type": "string",
-                                        "nullable": true
+                                        "nullable": true,
+                                        "maxLength": 2000
                                     }
                                 },
                                 "type": "object"
@@ -1676,26 +1818,23 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Comment updated."
-                                        },
-                                        "data": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/IncidentCommentResolutionResponse"
                                 }
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ErrorResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -5747,6 +5886,210 @@
                 },
                 "type": "object"
             },
+            "IncidentRelationOption": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Vehicle collision"
+                    },
+                    "code": {
+                        "type": "string",
+                        "example": "VEH_COLLISION",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentLocationDetail": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 11
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Loading Dock A"
+                    },
+                    "code": {
+                        "type": "string",
+                        "example": "LD-A",
+                        "nullable": true
+                    },
+                    "type": {
+                        "properties": {
+                            "id": {
+                                "type": "integer",
+                                "example": 1
+                            },
+                            "name": {
+                                "type": "string",
+                                "example": "Warehouse"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentAttachment": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 9001
+                    },
+                    "url": {
+                        "type": "string",
+                        "example": "http://localhost/storage/incidents/photo.jpg",
+                        "nullable": true
+                    },
+                    "attachment_type_id": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "attachment_type": {
+                        "type": "string",
+                        "example": "Photo",
+                        "nullable": true
+                    },
+                    "attachment_category_id": {
+                        "type": "integer",
+                        "example": 2,
+                        "nullable": true
+                    },
+                    "attachment_category": {
+                        "type": "string",
+                        "example": "Evidence",
+                        "nullable": true
+                    },
+                    "filename": {
+                        "type": "string",
+                        "example": "photo_1.jpg",
+                        "nullable": true
+                    },
+                    "original_name": {
+                        "type": "string",
+                        "example": "forklift-damage.jpg",
+                        "nullable": true
+                    },
+                    "path": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "mime_type": {
+                        "type": "string",
+                        "example": "image/jpeg",
+                        "nullable": true
+                    },
+                    "size": {
+                        "type": "integer",
+                        "example": 240512,
+                        "nullable": true
+                    },
+                    "temporary_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "local_created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentCommentReply": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 501
+                    },
+                    "reply": {
+                        "type": "string",
+                        "example": "Witness statement attached."
+                    },
+                    "user": {
+                        "properties": {
+                            "id": {
+                                "type": "integer",
+                                "example": 7
+                            },
+                            "name": {
+                                "type": "string",
+                                "example": "John Doe"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentComment": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 301
+                    },
+                    "comment_type": {
+                        "type": "string",
+                        "example": "clarification",
+                        "nullable": true
+                    },
+                    "comment": {
+                        "type": "string",
+                        "example": "Please clarify the sequence of events."
+                    },
+                    "user": {
+                        "properties": {
+                            "id": {
+                                "type": "integer",
+                                "example": 7
+                            },
+                            "name": {
+                                "type": "string",
+                                "example": "John Doe"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "replies": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentCommentReply"
+                        }
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "Incident": {
                 "required": [
                     "id",
@@ -5759,6 +6102,16 @@
                         "type": "integer",
                         "example": 128
                     },
+                    "temporary_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "incident_reference_number": {
+                        "type": "string",
+                        "example": "INC-2026-00128",
+                        "nullable": true
+                    },
                     "title": {
                         "type": "string",
                         "example": "Forklift collision near loading dock"
@@ -5767,16 +6120,31 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "status": {
+                    "incident_description": {
                         "type": "string",
-                        "example": "draft"
-                    },
-                    "classification": {
-                        "type": "string",
-                        "example": "Major",
                         "nullable": true
                     },
+                    "incident_type_id": {
+                        "type": "integer",
+                        "example": 2,
+                        "nullable": true
+                    },
+                    "incident_type": {
+                        "$ref": "#/components/schemas/IncidentRelationOption"
+                    },
                     "location": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "location_id": {
+                        "type": "integer",
+                        "example": 11,
+                        "nullable": true
+                    },
+                    "location_detail": {
+                        "$ref": "#/components/schemas/IncidentLocationDetail"
+                    },
+                    "other_location": {
                         "type": "string",
                         "nullable": true
                     },
@@ -5785,9 +6153,250 @@
                         "format": "date-time",
                         "nullable": true
                     },
+                    "incident_date": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "incident_time": {
+                        "type": "string",
+                        "example": "13:45:00",
+                        "nullable": true
+                    },
+                    "classification": {
+                        "type": "string",
+                        "example": "Major",
+                        "nullable": true
+                    },
+                    "classification_id": {
+                        "type": "integer",
+                        "example": 2,
+                        "nullable": true
+                    },
+                    "classification_detail": {
+                        "$ref": "#/components/schemas/IncidentRelationOption"
+                    },
+                    "reclassification_id": {
+                        "type": "integer",
+                        "example": 3,
+                        "nullable": true
+                    },
+                    "reclassification_detail": {
+                        "$ref": "#/components/schemas/IncidentRelationOption"
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "draft_submitted"
+                    },
+                    "status_id": {
+                        "type": "integer",
+                        "example": 4,
+                        "nullable": true
+                    },
+                    "status_detail": {
+                        "$ref": "#/components/schemas/IncidentRelationOption"
+                    },
+                    "work_package_id": {
+                        "type": "integer",
+                        "example": 3,
+                        "nullable": true
+                    },
+                    "work_package": {
+                        "$ref": "#/components/schemas/IncidentRelationOption"
+                    },
+                    "immediate_response": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "subcontractor_id": {
+                        "type": "integer",
+                        "example": 9,
+                        "nullable": true
+                    },
+                    "subcontractor": {
+                        "properties": {
+                            "id": {
+                                "type": "integer",
+                                "example": 9
+                            },
+                            "name": {
+                                "type": "string",
+                                "example": "ABC Contractor"
+                            },
+                            "contact_person": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "contact_number": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "person_in_charge": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "subcontractor_contact_number": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "gps_location": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "activity_during_incident": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "type_of_accident": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "basic_effect": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "conclusion": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "close_remark": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rootcause_id": {
+                        "type": "integer",
+                        "example": 6,
+                        "nullable": true
+                    },
+                    "root_cause": {
+                        "$ref": "#/components/schemas/IncidentRelationOption"
+                    },
+                    "other_rootcause": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "reported_by": {
                         "type": "integer",
                         "example": 7
+                    },
+                    "reporter": {
+                        "$ref": "#/components/schemas/User"
+                    },
+                    "attachments": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentAttachment"
+                        }
+                    },
+                    "chronologies": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "victims": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "witnesses": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "investigation_team_members": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "damages": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "immediate_actions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "planned_actions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "immediate_causes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentRelationOption"
+                        }
+                    },
+                    "contributing_factors": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentRelationOption"
+                        }
+                    },
+                    "work_activities": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentRelationOption"
+                        }
+                    },
+                    "external_parties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentRelationOption"
+                        }
+                    },
+                    "comments": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentComment"
+                        }
+                    },
+                    "comments_count": {
+                        "type": "integer",
+                        "example": 4,
+                        "nullable": true
+                    },
+                    "rejection_reason": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "submitted_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "approved_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "rejected_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "local_created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "deleted_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
                     },
                     "created_at": {
                         "type": "string",
@@ -5796,6 +6405,992 @@
                     "updated_at": {
                         "type": "string",
                         "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentAttachmentInput": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "attachment_type_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "attachment_category_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "filename": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "path": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "temporary_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "local_created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object",
+                "example": {
+                    "attachment_type_id": 1,
+                    "attachment_category_id": 2,
+                    "filename": "forklift-damage.jpg",
+                    "path": "incidents/tmp/forklift-damage.jpg",
+                    "description": "Forklift front guard damage",
+                    "temporary_id": "4a31dc75-8798-4d1f-9d74-44bb2f6f0d8f",
+                    "local_created_at": "2026-03-31T13:50:00Z"
+                }
+            },
+            "IncidentChronologyInput": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "event_date": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "event_time": {
+                        "type": "string",
+                        "example": "13:45",
+                        "nullable": true
+                    },
+                    "events": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "sort_order": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "temporary_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "local_created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object",
+                "example": {
+                    "event_date": "2026-03-31",
+                    "event_time": "13:35",
+                    "events": "Forklift reversed into stacked materials while repositioning a pallet.",
+                    "sort_order": 1,
+                    "temporary_id": "f44f9d76-b94c-4fd6-8e35-df66d842635d",
+                    "local_created_at": "2026-03-31T13:36:00Z"
+                }
+            },
+            "IncidentVictimInput": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "victim_type_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "identification": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "occupation": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "age": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "nationality": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "working_experience": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "nature_of_injury": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "body_injured": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "treatment": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "temporary_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "local_created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object",
+                "example": {
+                    "victim_type_id": 1,
+                    "name": "Rahman Bin Ali",
+                    "identification": "EMP-2291",
+                    "occupation": "Forklift Operator",
+                    "age": 34,
+                    "nationality": "Malaysian",
+                    "working_experience": "6 years",
+                    "nature_of_injury": "Bruised shoulder",
+                    "body_injured": "Left shoulder",
+                    "treatment": "First aid on site",
+                    "temporary_id": "5abf8fb7-6560-4eec-a944-8b59f91e8040",
+                    "local_created_at": "2026-03-31T13:52:00Z"
+                }
+            },
+            "IncidentWitnessInput": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "designation": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "identification": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "temporary_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "local_created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object",
+                "example": {
+                    "name": "Nur Aisyah",
+                    "designation": "Storekeeper",
+                    "identification": "EMP-1032",
+                    "temporary_id": "b6fdbe64-a85d-4a45-a9b6-e4f43334178c",
+                    "local_created_at": "2026-03-31T13:53:00Z"
+                }
+            },
+            "IncidentInvestigationTeamMemberInput": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "designation": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "contact_number": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "company": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "temporary_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "local_created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object",
+                "example": {
+                    "name": "Daniel Wong",
+                    "designation": "Safety Officer",
+                    "contact_number": "+60123456789",
+                    "company": "Main Contractor",
+                    "temporary_id": "5d5dc8db-fbf3-4ee8-b910-4603119f8c62",
+                    "local_created_at": "2026-03-31T15:00:00Z"
+                }
+            },
+            "IncidentDamageInput": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "damage_type_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "estimate_cost": {
+                        "type": "number",
+                        "format": "float",
+                        "nullable": true
+                    },
+                    "temporary_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "local_created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object",
+                "example": {
+                    "damage_type_id": 3,
+                    "estimate_cost": 4200.5,
+                    "temporary_id": "f3ce399d-e78b-4535-8317-c7ff658965ca",
+                    "local_created_at": "2026-03-31T14:05:00Z"
+                }
+            },
+            "IncidentImmediateActionInput": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "action_taken": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "company": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "temporary_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "local_created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object",
+                "example": {
+                    "action_taken": "Isolated the area and stopped forklift operation.",
+                    "company": "Main Contractor",
+                    "temporary_id": "af7309f3-4af8-40bb-b67a-d70c2f67fe96",
+                    "local_created_at": "2026-03-31T13:55:00Z"
+                }
+            },
+            "IncidentPlannedActionInput": {
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "action_taken": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "expected_date": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "actual_date": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "temporary_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "local_created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object",
+                "example": {
+                    "action_taken": "Replace damaged guard and refresh reversing-zone controls.",
+                    "expected_date": "2026-04-03",
+                    "actual_date": null,
+                    "temporary_id": "48771fd2-c236-4a1b-bbf8-9a7d8a5f4f7d",
+                    "local_created_at": "2026-03-31T16:10:00Z"
+                }
+            },
+            "IncidentStoreRequest": {
+                "required": [
+                    "title",
+                    "incident_type_id",
+                    "incident_date",
+                    "incident_time",
+                    "work_package_id",
+                    "location_type_id",
+                    "classification_id",
+                    "incident_description",
+                    "immediate_response",
+                    "work_activity_id",
+                    "attachments"
+                ],
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "example": "Forklift collision near loading dock"
+                    },
+                    "incident_type_id": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "incident_date": {
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-03-31"
+                    },
+                    "incident_time": {
+                        "type": "string",
+                        "example": "13:45"
+                    },
+                    "status_id": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "work_package_id": {
+                        "type": "integer",
+                        "example": 3
+                    },
+                    "location_type_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "location_id": {
+                        "type": "integer",
+                        "example": 11,
+                        "nullable": true
+                    },
+                    "other_location": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "classification_id": {
+                        "type": "integer",
+                        "example": 2
+                    },
+                    "reclassification_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "incident_description": {
+                        "type": "string"
+                    },
+                    "immediate_response": {
+                        "type": "string"
+                    },
+                    "subcontractor_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "person_in_charge": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "subcontractor_contact_number": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "gps_location": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "activity_during_incident": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "type_of_accident": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "basic_effect": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "conclusion": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "close_remark": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rootcause_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "other_rootcause": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "temporary_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "local_created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "work_activity_id": {
+                        "type": "integer",
+                        "example": 4
+                    },
+                    "work_activity_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            4,
+                            7
+                        ]
+                    },
+                    "attachments": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentAttachmentInput"
+                        },
+                        "example": [
+                            {
+                                "attachment_type_id": 1,
+                                "attachment_category_id": 2,
+                                "filename": "forklift-damage.jpg",
+                                "path": "incidents/tmp/forklift-damage.jpg",
+                                "description": "Forklift front guard damage",
+                                "temporary_id": "4a31dc75-8798-4d1f-9d74-44bb2f6f0d8f",
+                                "local_created_at": "2026-03-31T13:50:00Z"
+                            }
+                        ],
+                        "minItems": 1
+                    },
+                    "chronologies": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentChronologyInput"
+                        },
+                        "example": [
+                            {
+                                "event_date": "2026-03-31",
+                                "event_time": "13:35",
+                                "events": "Forklift reversed into stacked materials while repositioning a pallet.",
+                                "sort_order": 1,
+                                "temporary_id": "f44f9d76-b94c-4fd6-8e35-df66d842635d",
+                                "local_created_at": "2026-03-31T13:36:00Z"
+                            }
+                        ]
+                    },
+                    "victims": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentVictimInput"
+                        },
+                        "example": [
+                            {
+                                "victim_type_id": 1,
+                                "name": "Rahman Bin Ali",
+                                "identification": "EMP-2291",
+                                "occupation": "Forklift Operator",
+                                "age": 34,
+                                "nationality": "Malaysian",
+                                "working_experience": "6 years",
+                                "nature_of_injury": "Bruised shoulder",
+                                "body_injured": "Left shoulder",
+                                "treatment": "First aid on site",
+                                "temporary_id": "5abf8fb7-6560-4eec-a944-8b59f91e8040",
+                                "local_created_at": "2026-03-31T13:52:00Z"
+                            }
+                        ]
+                    },
+                    "witnesses": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentWitnessInput"
+                        }
+                    },
+                    "investigation_team_members": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentInvestigationTeamMemberInput"
+                        }
+                    },
+                    "damages": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentDamageInput"
+                        }
+                    },
+                    "immediate_actions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentImmediateActionInput"
+                        },
+                        "example": [
+                            {
+                                "action_taken": "Isolated the area and stopped forklift operation.",
+                                "company": "Main Contractor",
+                                "temporary_id": "af7309f3-4af8-40bb-b67a-d70c2f67fe96",
+                                "local_created_at": "2026-03-31T13:55:00Z"
+                            }
+                        ]
+                    },
+                    "planned_actions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentPlannedActionInput"
+                        },
+                        "example": [
+                            {
+                                "action_taken": "Replace damaged guard and refresh reversing-zone controls.",
+                                "expected_date": "2026-04-03",
+                                "actual_date": null,
+                                "temporary_id": "48771fd2-c236-4a1b-bbf8-9a7d8a5f4f7d",
+                                "local_created_at": "2026-03-31T16:10:00Z"
+                            }
+                        ]
+                    },
+                    "remove_attachment_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            9001
+                        ]
+                    },
+                    "immediate_cause_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            2,
+                            5
+                        ]
+                    },
+                    "contributing_factor_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            3,
+                            8
+                        ]
+                    },
+                    "external_party_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            1
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentUpdateRequest": {
+                "properties": {
+                    "incident_reference_number": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "incident_type_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "incident_date": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "incident_time": {
+                        "type": "string",
+                        "example": "13:45",
+                        "nullable": true
+                    },
+                    "status_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "work_package_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "location_type_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "location_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "other_location": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "classification_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "reclassification_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "work_activity_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "incident_description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "immediate_response": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "subcontractor_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "person_in_charge": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "subcontractor_contact_number": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "gps_location": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "activity_during_incident": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "type_of_accident": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "basic_effect": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "conclusion": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "close_remark": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "rootcause_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "other_rootcause": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "temporary_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "local_created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "chronologies": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentChronologyInput"
+                        },
+                        "example": [
+                            {
+                                "id": 12,
+                                "event_date": "2026-03-31",
+                                "event_time": "13:35",
+                                "events": "Forklift reversed into stacked materials while repositioning a pallet.",
+                                "sort_order": 1
+                            }
+                        ]
+                    },
+                    "victims": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentVictimInput"
+                        },
+                        "example": [
+                            {
+                                "id": 21,
+                                "victim_type_id": 1,
+                                "name": "Rahman Bin Ali",
+                                "nature_of_injury": "Bruised shoulder",
+                                "treatment": "First aid on site"
+                            }
+                        ]
+                    },
+                    "witnesses": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentWitnessInput"
+                        }
+                    },
+                    "investigation_team_members": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentInvestigationTeamMemberInput"
+                        }
+                    },
+                    "damages": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentDamageInput"
+                        }
+                    },
+                    "immediate_actions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentImmediateActionInput"
+                        },
+                        "example": [
+                            {
+                                "id": 31,
+                                "action_taken": "Isolated the area and stopped forklift operation.",
+                                "company": "Main Contractor"
+                            }
+                        ]
+                    },
+                    "planned_actions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentPlannedActionInput"
+                        },
+                        "example": [
+                            {
+                                "id": 41,
+                                "action_taken": "Replace damaged guard and refresh reversing-zone controls.",
+                                "expected_date": "2026-04-03"
+                            }
+                        ]
+                    },
+                    "attachments": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentAttachmentInput"
+                        },
+                        "example": [
+                            {
+                                "id": 9001,
+                                "attachment_type_id": 1,
+                                "attachment_category_id": 2,
+                                "filename": "forklift-damage.jpg",
+                                "description": "Replacement evidence photo"
+                            }
+                        ]
+                    },
+                    "remove_attachment_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            9001
+                        ]
+                    },
+                    "immediate_cause_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "contributing_factor_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "work_activity_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            4,
+                            7
+                        ]
+                    },
+                    "external_party_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        },
+                        "example": [
+                            1
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentTransitionResponse": {
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Incident transitioned successfully."
+                    },
+                    "incident_id": {
+                        "type": "integer",
+                        "example": 128
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "draft_submitted"
+                    },
+                    "status_label": {
+                        "type": "string",
+                        "example": "Draft Submitted"
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentCommentCreateResponse": {
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Comment added."
+                    },
+                    "comment_id": {
+                        "type": "integer",
+                        "example": 301
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentReplyCreateResponse": {
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Reply added."
+                    },
+                    "reply_id": {
+                        "type": "integer",
+                        "example": 501
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentCommentResolutionResponse": {
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Comment resolved."
+                    },
+                    "comment_id": {
+                        "type": "integer",
+                        "example": 301
+                    },
+                    "is_resolved": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "resolved_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "resolved_by": {
+                        "type": "integer",
+                        "example": 7,
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentAllowedTransition": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "example": "draft_reviewed"
+                    },
+                    "label": {
+                        "type": "string",
+                        "example": "Draft Reviewed"
+                    },
+                    "blocked_by_unresolved_critical_comments": {
+                        "type": "boolean",
+                        "example": false
+                    }
+                },
+                "type": "object"
+            },
+            "IncidentAllowedTransitionsResponse": {
+                "properties": {
+                    "transitions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/IncidentAllowedTransition"
+                        }
                     }
                 },
                 "type": "object"
@@ -5984,6 +7579,40 @@
                 },
                 "type": "object"
             },
+            "DashboardResponse": {
+                "required": [
+                    "role",
+                    "widgets"
+                ],
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "example": "HOD HSSE"
+                    },
+                    "roles": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "example": "HOD HSSE"
+                        }
+                    },
+                    "widgets": {
+                        "type": "object",
+                        "example": {
+                            "pending_draft_review": 3,
+                            "closure_requests": 2
+                        },
+                        "additionalProperties": {
+                            "schema": "DashboardSchemas",
+                            "type": "integer"
+                        }
+                    }
+                },
+                "type": "object"
+            },
+            "DashboardSchemas": {
+                "type": "integer"
+            },
             "InspectionMobileSession": {
                 "properties": {
                     "id": {
@@ -6129,7 +7758,7 @@
         "securitySchemes": {
             "bearer_token": {
                 "type": "http",
-                "description": "Laravel Sanctum bearer token. Obtain token from /api/v1/auth/login and authorize using: Bearer {token}",
+                "description": "Bearer token auth. Use data.dashboard_token (Sanctum) for /api/dashboard endpoints, and data.token for mobile token middleware endpoints.",
                 "name": "bearer_token",
                 "in": "header",
                 "bearerFormat": "Sanctum",
@@ -6150,6 +7779,10 @@
         {
             "name": "Auth",
             "description": "Authentication endpoints"
+        },
+        {
+            "name": "Dashboard",
+            "description": "Role-based dashboard endpoints"
         },
         {
             "name": "Devices",

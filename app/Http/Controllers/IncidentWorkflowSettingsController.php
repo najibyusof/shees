@@ -23,7 +23,7 @@ class IncidentWorkflowSettingsController extends Controller
 
     public function __construct()
     {
-        $this->middleware('role:Admin');
+        $this->middleware('permission:roles.manage');
     }
 
     public function show(): View

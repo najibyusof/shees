@@ -18,6 +18,11 @@ class IncidentApiController extends Controller
 
     public function __construct(private readonly IncidentService $incidentService)
     {
+        $this->authorizeResource(Incident::class, 'incident');
+        $this->middleware('permission:view_incident')->only(['index', 'show']);
+        $this->middleware('permission:create_incident')->only(['store']);
+        $this->middleware('permission:edit_incident')->only(['update']);
+        $this->middleware('permission:edit_incident,review_incident,approve_final')->only(['destroy']);
     }
 
     /**
@@ -29,7 +34,9 @@ class IncidentApiController extends Controller
         $query = Incident::withTrashed()
             ->with(['reporter', 'incidentStatus', 'incidentClassification', 'incidentLocation'])
             ->when(
-                ! $user->hasAnyRole(['Admin', 'Manager', 'Safety Officer']),
+                ! $user->hasPermissionTo('review_incident')
+                    && ! $user->hasPermissionTo('approve_final')
+                    && ! $user->hasPermissionTo('edit_incident'),
                 fn ($q) => $q->where('reported_by', $user->id)
             )
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
@@ -101,14 +108,9 @@ class IncidentApiController extends Controller
      */
     public function update(UpdateIncidentApiRequest $request, Incident $incident): JsonResponse
     {
+        $this->authorize('update', $incident);
+
         $user = $request->user();
-
-        $canEdit = $user->hasAnyRole(['Admin', 'Manager', 'Safety Officer'])
-            || ($incident->reported_by === $user->id && in_array($incident->status, ['draft', 'rejected'], true));
-
-        if (! $canEdit) {
-            return $this->forbidden('You cannot edit this incident in its current state.');
-        }
 
         $incident = $this->incidentService->update(
             $incident,
@@ -125,14 +127,7 @@ class IncidentApiController extends Controller
      */
     public function destroy(Request $request, Incident $incident): JsonResponse
     {
-        $user = $request->user();
-
-        $canDelete = $user->hasAnyRole(['Admin', 'Manager', 'Safety Officer'])
-            || $incident->reported_by === $user->id;
-
-        if (! $canDelete) {
-            return $this->forbidden();
-        }
+        $this->authorize('delete', $incident);
 
         $incident->delete();
 

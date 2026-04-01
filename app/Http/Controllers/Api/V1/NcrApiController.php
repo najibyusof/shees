@@ -18,6 +18,11 @@ class NcrApiController extends Controller
 
     public function __construct(private readonly SiteAuditService $siteAuditService)
     {
+        $this->authorizeResource(NcrReport::class, 'ncrReport');
+        $this->middleware('permission:view_audit')->only(['index', 'show']);
+        $this->middleware('permission:create_audit')->only(['store']);
+        $this->middleware('permission:edit_audit')->only(['update']);
+        $this->middleware('permission:approve_audit')->only(['destroy']);
     }
 
     /**
@@ -25,12 +30,17 @@ class NcrApiController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        if (! $request->user()->hasAnyRole(['Admin', 'Manager', 'Safety Officer'])) {
-            return $this->forbidden();
-        }
+        $user = $request->user();
 
         $query = NcrReport::withTrashed()
             ->with(['reporter'])
+            ->when(
+                ! $user->hasPermissionTo('edit_audit') && ! $user->hasPermissionTo('approve_audit'),
+                fn ($q) => $q->where(function ($inner) use ($user) {
+                    $inner->where('reported_by', $user->id)
+                        ->orWhere('owner_id', $user->id);
+                })
+            )
             ->when($request->filled('site_audit_id'), fn ($q) => $q->where('site_audit_id', $request->query('site_audit_id')))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
             ->when($request->filled('severity'), fn ($q) => $q->where('severity', $request->query('severity')));
@@ -84,9 +94,7 @@ class NcrApiController extends Controller
      */
     public function destroy(Request $request, NcrReport $ncrReport): JsonResponse
     {
-        if (! $request->user()->hasAnyRole(['Admin', 'Manager'])) {
-            return $this->forbidden();
-        }
+        $this->authorize('delete', $ncrReport);
 
         $ncrReport->delete();
 

@@ -35,6 +35,9 @@ class IncidentFactory extends Factory
         $rootCause = CauseType::query()->inRandomOrder()->first();
         $description = $this->faker->paragraph(3);
 
+        // Ensure work_package_id has a fallback default (use existing or 1)
+        $workPackageId = $workPackage?->id ?? 1;
+
         return [
             'reported_by' => User::query()->inRandomOrder()->value('id') ?? User::factory(),
             'submitted_by' => null,
@@ -47,7 +50,7 @@ class IncidentFactory extends Factory
             'incident_description' => $description,
             'incident_type_id' => $incidentType?->id,
             'location' => $location?->name ?? $this->faker->randomElement(['Warehouse A', 'Plant 1', 'Boiler Room', 'Loading Dock', 'Chemical Storage']),
-            'location_type_id' => $location?->location_type_id,
+            'location_type_id' => $location?->location_type_id ?? 1,
             'location_id' => $location?->id,
             'other_location' => $location?->name,
             'datetime' => $occurredAt,
@@ -57,8 +60,8 @@ class IncidentFactory extends Factory
             'classification_id' => $classification?->id,
             'status' => $status?->code ?? $this->faker->randomElement(Incident::STATUSES),
             'status_id' => $status?->id,
-            'work_package_id' => $workPackage?->id,
-            'work_activity_id' => $workActivity?->id,
+            'work_package_id' => $workPackageId,
+            'work_activity_id' => $workActivity?->id ?? WorkActivity::query()->inRandomOrder()->value('id'),
             'immediate_response' => $this->faker->sentence(12),
             'subcontractor_id' => $subcontractor?->id,
             'person_in_charge' => $this->faker->name(),

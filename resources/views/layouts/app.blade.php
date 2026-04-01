@@ -9,6 +9,7 @@
     <title>{{ config('app.name', 'Laravel') }}</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @stack('styles')
 
     <script>
         (function() {
@@ -75,6 +76,8 @@
 
         <x-ui.toast-center :toasts="session('toast') ? [session('toast')] : []" />
     </div>
+
+    @stack('scripts')
 </body>
 
 </html>

@@ -116,7 +116,9 @@ class IncidentController extends Controller
             ]);
         }
 
-        $authorizedIncidents = $incidents->filter(fn (Incident $incident) => $request->user()->can('update', $incident));
+        $targetAbility = $validated['action'] === 'delete' ? 'delete' : 'update';
+
+        $authorizedIncidents = $incidents->filter(fn (Incident $incident) => $request->user()->can($targetAbility, $incident));
 
         if ($authorizedIncidents->isEmpty()) {
             return redirect()->route('incidents.index')->with('toast', [

@@ -18,6 +18,11 @@ class TrainingApiController extends Controller
 
     public function __construct(private readonly TrainingService $trainingService)
     {
+        // Per-action middleware provides defense-in-depth authorization
+        $this->middleware('permission:view_training')->only(['index', 'show']);
+        $this->middleware('permission:create_training')->only(['store']);
+        $this->middleware('permission:edit_training')->only(['update']);
+        $this->middleware('permission:approve_training')->only(['destroy']);
     }
 
     /**
@@ -33,8 +38,10 @@ class TrainingApiController extends Controller
             })
             ->when($request->filled('search'), fn ($q) => $q->search($request->query('search')));
 
-        // Non-admin users only see trainings they are assigned to
-        if (! $user->hasAnyRole(['Admin', 'Manager', 'Safety Officer'])) {
+        // Users without training management permissions only see assigned trainings.
+        if (! $user->hasPermissionTo('edit_training')
+            && ! $user->hasPermissionTo('approve_training')
+            && ! $user->hasPermissionTo('create_training')) {
             $query->whereHas('users', fn ($q) => $q->where('users.id', $user->id));
         }
 
@@ -74,6 +81,8 @@ class TrainingApiController extends Controller
      */
     public function update(UpdateTrainingApiRequest $request, Training $training): JsonResponse
     {
+        $this->authorize('update', $training);
+
         $training = $this->trainingService->update($training, $request->validated());
 
         return $this->success(new TrainingResource($training));
@@ -84,9 +93,7 @@ class TrainingApiController extends Controller
      */
     public function destroy(Request $request, Training $training): JsonResponse
     {
-        if (! $request->user()->hasAnyRole(['Admin', 'Manager'])) {
-            return $this->forbidden();
-        }
+        $this->authorize('delete', $training);
 
         $training->delete();
 

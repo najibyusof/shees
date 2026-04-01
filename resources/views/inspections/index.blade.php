@@ -3,7 +3,9 @@
 @section('header')
     <x-ui.page-header title="Inspections" subtitle="Execute inspections and track offline sync lifecycle.">
         <x-slot:actions>
-            <x-ui.button :href="route('inspections.create')" variant="primary" size="md">Start Inspection</x-ui.button>
+            @can('create', \App\Models\Inspection::class)
+                <x-ui.button :href="route('inspections.create')" variant="primary" size="md">Start Inspection</x-ui.button>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 @endsection
@@ -32,7 +34,9 @@
                         <td class="px-4 py-3 ui-text-muted">{{ $inspection->location ?? '-' }}</td>
                         <td class="px-4 py-3 ui-text-muted">{{ $inspection->sync_status }}</td>
                         <td class="px-4 py-3 text-right">
-                            <x-ui.button :href="route('inspections.show', $inspection)" variant="ghost" size="sm">Open</x-ui.button>
+                            @can('view', $inspection)
+                                <x-ui.button :href="route('inspections.show', $inspection)" variant="ghost" size="sm">Open</x-ui.button>
+                            @endcan
                         </td>
                     </tr>
                 @endforeach

@@ -14,7 +14,10 @@ use Illuminate\View\View;
 
 class InspectionController extends Controller
 {
-    public function __construct(private readonly InspectionExecutionService $inspectionService) {}
+    public function __construct(private readonly InspectionExecutionService $inspectionService)
+    {
+        $this->authorizeResource(Inspection::class, 'inspection');
+    }
 
     public function index(): View
     {
@@ -53,6 +56,8 @@ class InspectionController extends Controller
 
     public function updateResponses(UpdateInspectionResponseRequest $request, Inspection $inspection): RedirectResponse
     {
+        $this->authorize('update', $inspection);
+
         $this->inspectionService->updateResponses(
             $inspection,
             $request->validated('responses'),
@@ -71,6 +76,8 @@ class InspectionController extends Controller
         Inspection $inspection,
         InspectionResponse $response
     ): RedirectResponse {
+        $this->authorize('update', $inspection);
+
         $this->inspectionService->uploadImage(
             $inspection,
             $response,
@@ -88,6 +95,8 @@ class InspectionController extends Controller
 
     public function submit(Inspection $inspection): RedirectResponse
     {
+        $this->authorize('update', $inspection);
+
         $this->inspectionService->submit($inspection);
 
         return redirect()->route('inspections.show', $inspection)->with('toast', [

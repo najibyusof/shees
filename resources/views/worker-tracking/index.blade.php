@@ -1,7 +1,8 @@
 @extends('layouts.app')
 
 @section('header')
-    <x-ui.page-header title="Worker Tracking" subtitle="Monitor workforce status, attendance activity, and geofence alerts." />
+    <x-ui.page-header title="Worker Tracking"
+        subtitle="Monitor workforce status, attendance activity, and geofence alerts." />
 @endsection
 
 @section('content')
@@ -17,7 +18,8 @@
             </x-ui.card>
             <x-ui.card padding="p-4">
                 <p class="text-xs font-semibold uppercase ui-text-muted">On Leave</p>
-                <p class="mt-2 text-2xl font-bold ui-text">{{ number_format((int) ($summary['on_leave_workers'] ?? 0)) }}</p>
+                <p class="mt-2 text-2xl font-bold ui-text">{{ number_format((int) ($summary['on_leave_workers'] ?? 0)) }}
+                </p>
             </x-ui.card>
             <x-ui.card padding="p-4">
                 <p class="text-xs font-semibold uppercase ui-text-muted">Geofence Alerts (24h)</p>
@@ -60,7 +62,9 @@
                             <td class="px-4 py-3 ui-text">{{ number_format((int) $worker->geofence_alerts_count) }}</td>
                             <td class="px-4 py-3 ui-text-muted">{{ $worker->last_seen_at?->diffForHumans() ?? 'N/A' }}</td>
                             <td class="px-4 py-3 text-right">
-                                <x-ui.button :href="route('worker-tracking.ui.show', $worker)" variant="ghost" size="sm">View</x-ui.button>
+                                @can('view', $worker)
+                                    <x-ui.button :href="route('worker-tracking.ui.show', $worker)" variant="ghost" size="sm">View</x-ui.button>
+                                @endcan
                             </td>
                         </tr>
                     @endforeach

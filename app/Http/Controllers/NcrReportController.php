@@ -18,6 +18,8 @@ class NcrReportController extends Controller
 
     public function store(StoreNcrReportRequest $request, SiteAudit $siteAudit): RedirectResponse
     {
+        $this->authorize('createNcr', $siteAudit);
+
         $validated = $request->validated();
 
         $this->siteAuditService->createNcr($siteAudit, $validated, $request->user());
@@ -31,6 +33,8 @@ class NcrReportController extends Controller
 
     public function update(UpdateNcrReportRequest $request, NcrReport $ncrReport): RedirectResponse
     {
+        $this->authorize('updateNcr', $ncrReport->siteAudit);
+
         $validated = $request->validated();
 
         $this->siteAuditService->updateNcr($ncrReport, $validated, $request->user());
@@ -44,6 +48,8 @@ class NcrReportController extends Controller
 
     public function storeCorrectiveAction(StoreCorrectiveActionRequest $request, NcrReport $ncrReport): RedirectResponse
     {
+        $this->authorize('createCorrectiveAction', $ncrReport->siteAudit);
+
         $validated = $request->validated();
 
         $this->siteAuditService->addCorrectiveAction($ncrReport, $validated);
@@ -57,6 +63,8 @@ class NcrReportController extends Controller
 
     public function updateCorrectiveAction(UpdateCorrectiveActionRequest $request, CorrectiveAction $correctiveAction): RedirectResponse
     {
+        $this->authorize('updateCorrectiveAction', $correctiveAction->ncrReport->siteAudit);
+
         $validated = $request->validated();
 
         $this->siteAuditService->updateCorrectiveAction($correctiveAction, $validated, $request->user());

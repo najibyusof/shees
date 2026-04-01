@@ -18,6 +18,11 @@ class AuditApiController extends Controller
 
     public function __construct(private readonly SiteAuditService $siteAuditService)
     {
+        $this->authorizeResource(SiteAudit::class, 'audit');
+        $this->middleware('permission:view_audit')->only(['index', 'show']);
+        $this->middleware('permission:create_audit')->only(['store']);
+        $this->middleware('permission:edit_audit')->only(['update']);
+        $this->middleware('permission:approve_audit')->only(['destroy']);
     }
 
     /**
@@ -25,10 +30,6 @@ class AuditApiController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        if (! $request->user()->hasAnyRole(['Admin', 'Manager', 'Safety Officer'])) {
-            return $this->forbidden();
-        }
-
         $query = SiteAudit::withTrashed()
             ->with(['creator'])
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
@@ -85,9 +86,7 @@ class AuditApiController extends Controller
      */
     public function destroy(Request $request, SiteAudit $audit): JsonResponse
     {
-        if (! $request->user()->hasAnyRole(['Admin', 'Manager'])) {
-            return $this->forbidden();
-        }
+        $this->authorize('approve', $audit);
 
         $audit->delete();
 

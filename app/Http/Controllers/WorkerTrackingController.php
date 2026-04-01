@@ -13,7 +13,7 @@ class WorkerTrackingController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $this->authorizeWorkerAccess($request->user(), 'workers.view');
+        $this->authorize('viewAny', Worker::class);
 
         $workers = Worker::query()
             ->with('user')
@@ -31,7 +31,7 @@ class WorkerTrackingController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->authorizeWorkerAccess($request->user(), 'workers.manage');
+        $this->authorize('create', Worker::class);
 
         $validated = $request->validate([
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
@@ -53,7 +53,7 @@ class WorkerTrackingController extends Controller
 
     public function show(Request $request, Worker $worker): JsonResponse
     {
-        $this->authorizeWorkerAccess($request->user(), 'workers.view');
+        $this->authorize('view', $worker);
 
         return response()->json([
             'data' => $worker->load(['user', 'attendanceLogs' => fn ($q) => $q->limit(50)]),
@@ -62,7 +62,7 @@ class WorkerTrackingController extends Controller
 
     public function update(Request $request, Worker $worker): JsonResponse
     {
-        $this->authorizeWorkerAccess($request->user(), 'workers.manage');
+        $this->authorize('update', $worker);
 
         $validated = $request->validate([
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
@@ -84,7 +84,7 @@ class WorkerTrackingController extends Controller
 
     public function logAttendance(Request $request, Worker $worker): JsonResponse
     {
-        $this->authorizeWorkerAccess($request->user(), 'workers.track');
+        $this->authorize('logAttendance', $worker);
 
         $validated = $request->validate([
             'event_type' => ['nullable', 'string', 'in:check_in,check_out,ping,manual_adjustment'],
@@ -107,7 +107,7 @@ class WorkerTrackingController extends Controller
 
     public function simulateTracking(Request $request, Worker $worker): JsonResponse
     {
-        $this->authorizeWorkerAccess($request->user(), 'workers.track');
+        $this->authorize('logAttendance', $worker);
 
         $validated = $request->validate([
             'breach_chance' => ['nullable', 'numeric', 'between:0,1'],
@@ -123,7 +123,7 @@ class WorkerTrackingController extends Controller
 
     public function attendanceFeed(Request $request, Worker $worker): JsonResponse
     {
-        $this->authorizeWorkerAccess($request->user(), 'workers.view');
+        $this->authorize('view', $worker);
 
         $logs = $worker->attendanceLogs()
             ->when($request->filled('from'), function ($query) use ($request) {
@@ -136,12 +136,5 @@ class WorkerTrackingController extends Controller
             ->get();
 
         return response()->json(['data' => $logs]);
-    }
-
-    private function authorizeWorkerAccess(?\App\Models\User $user, string $permission): void
-    {
-        if (! $user || ! $user->hasPermissionTo($permission)) {
-            abort(403, 'You are not authorized to perform this worker tracking action.');
-        }
     }
 }

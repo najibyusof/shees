@@ -3,7 +3,9 @@
 @section('header')
     <x-ui.page-header title="Training Management" subtitle="Create programs, assign users, and track certifications.">
         <x-slot:actions>
-            <x-ui.button :href="route('trainings.create')" variant="primary" size="md">Create Training</x-ui.button>
+            @can('create', \App\Models\Training::class)
+                <x-ui.button :href="route('trainings.create')" variant="primary" size="md">Create Training</x-ui.button>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 @endsection

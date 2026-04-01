@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Traits\HasResourceScoping;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Training extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes, HasResourceScoping;
 
     protected $fillable = [
         'title',
@@ -118,5 +120,28 @@ class Training extends Model
         $direction = strtolower((string) $direction) === 'asc' ? 'asc' : 'desc';
 
         return $query->orderBy($sort, $direction)->orderBy('id', 'desc');
+    }
+
+    /**
+     * Scope query to trainings accessible by the given user.
+     *
+     * Access rules:
+     * - Admin: all trainings
+     * - Manager, Safety Officer, HOD HSSE, APSB PD: all trainings
+     * - Others: trainings they are assigned to
+     */
+    public function scopeAccessibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->hasRole('Admin')) {
+            return $query;
+        }
+
+        // Supervisory roles can view all trainings
+        if ($user->hasAnyRole(['Manager', 'Safety Officer', 'HOD HSSE', 'APSB PD', 'MRTS', 'Auditor'])) {
+            return $query;
+        }
+
+        // Workers see only trainings assigned to them
+        return $query->whereHas('users', fn (Builder $q) => $q->where('users.id', $user->id));
     }
 }

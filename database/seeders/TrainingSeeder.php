@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Certificate;
+use App\Models\Role;
 use App\Models\Training;
 use App\Models\User;
 use Database\Seeders\Support\SeedDataGenerator;
@@ -21,6 +22,35 @@ class TrainingSeeder extends Seeder
         $workerUsers = User::query()
             ->whereHas('roles', fn ($query) => $query->where('name', 'Worker'))
             ->get();
+
+        if ($workerUsers->count() < 5) {
+            $workerRole = Role::query()->where('name', 'Worker')->first();
+
+            if ($workerRole !== null) {
+                $required = 5 - $workerUsers->count();
+
+                for ($i = 1; $i <= $required; $i++) {
+                    $seedEmail = 'seed-worker-expired-'.$i.'@example.com';
+
+                    $seedWorker = User::query()->updateOrCreate(
+                        ['email' => $seedEmail],
+                        [
+                            'name' => 'Seed Worker Expired '.$i,
+                            'password' => 'password',
+                            'email_verified_at' => now(),
+                        ]
+                    );
+
+                    $seedWorker->roles()->syncWithoutDetaching([$workerRole->id]);
+                }
+
+                $workerUsers = User::query()
+                    ->whereHas('roles', fn ($query) => $query->where('name', 'Worker'))
+                    ->get();
+            }
+        }
+
+        $users = User::query()->get();
 
         if ($users->count() < 10) {
             return;

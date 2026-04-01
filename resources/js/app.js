@@ -1,7 +1,11 @@
 import "./bootstrap";
 import { usersPreferences } from "./pages/usersPreferences";
+import { Chart, registerables } from "chart.js";
 
 import Alpine from "alpinejs";
+
+Chart.register(...registerables);
+window.Chart = Chart;
 
 window.Alpine = Alpine;
 window.usersPreferences = usersPreferences;

@@ -9,11 +9,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -187,6 +188,8 @@ class User extends Authenticatable
         $aliases = [
             'audits.view' => ['view_audit'],
             'view_audit' => ['audits.view'],
+            'view_report' => ['reports.view'],
+            'reports.view' => ['view_report'],
             'audits.conduct' => ['create_audit'],
             'create_audit' => ['audits.conduct'],
             'audits.approve' => ['approve_audit'],
@@ -207,11 +210,20 @@ class User extends Authenticatable
             'users.delete' => ['delete_user_management'],
             'delete_user_management' => ['users.delete'],
             'incidents.submit' => ['create_incident'],
-            'create_incident' => ['incidents.submit'],
+            'create_incident' => ['incidents.submit', 'submit_incident'],
+            'submit_incident' => ['incidents.submit', 'create_incident'],
+            'view_incident' => ['incidents.view'],
+            'incidents.view' => ['view_incident'],
             'incidents.approve' => ['approve_incident'],
-            'approve_incident' => ['incidents.approve'],
+            'approve_incident' => ['incidents.approve', 'approve_final'],
+            'approve_final' => ['approve_incident', 'incidents.approve'],
             'incidents.update' => ['edit_incident'],
             'edit_incident' => ['incidents.update'],
+            'review_incident' => ['approve_incident'],
+            'request_closure' => ['approve_closure'],
+            'approve_closure' => ['request_closure'],
+            'view_training' => ['training.view'],
+            'training.view' => ['view_training'],
             'incidents.comment' => ['create_incident', 'approve_incident'],
         ];
 

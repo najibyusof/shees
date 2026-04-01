@@ -49,14 +49,23 @@ class AuthController extends Controller
             (int) ($validated['ttl_minutes'] ?? 10080)
         );
 
+        $formattedUser = $this->formatUser($user);
+        $dashboardToken = $user->createToken(
+            $validated['device_name'].'-dashboard',
+            collect($formattedUser['permissions'])->values()->all()
+        )->plainTextToken;
+
         return $this->success(
             data: [
                 'token'       => $issued['token'],
                 'token_type'  => 'Bearer',
+                'dashboard_token' => $dashboardToken,
                 'session_id'  => $issued['record']->id,
                 'device_name' => $issued['record']->name,
                 'expires_at'  => optional($issued['record']->expires_at)->toIso8601String(),
-                'user'        => $this->formatUser($user),
+                'user'        => $formattedUser,
+                'roles'       => collect($formattedUser['roles'])->pluck('name')->values(),
+                'permissions' => $formattedUser['permissions'],
             ],
             message: 'Login successful.'
         );

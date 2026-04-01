@@ -19,6 +19,11 @@ class InspectionApiController extends Controller
         private readonly InspectionChecklistService $checklistService,
         private readonly InspectionExecutionService $executionService,
     ) {
+        $this->authorizeResource(Inspection::class, 'inspection');
+        $this->middleware('permission:view_audit')->only(['index', 'show']);
+        $this->middleware('permission:create_audit')->only(['store']);
+        $this->middleware('permission:edit_audit')->only(['update']);
+        $this->middleware('permission:approve_audit')->only(['destroy']);
     }
 
     /**
@@ -29,7 +34,9 @@ class InspectionApiController extends Controller
         $user  = $request->user();
         $query = Inspection::with(['inspector', 'checklist'])
             ->when(
-                ! $user->hasAnyRole(['Admin', 'Manager', 'Safety Officer']),
+                ! $user->hasPermissionTo('edit_audit')
+                    && ! $user->hasPermissionTo('approve_audit')
+                    && ! $user->hasPermissionTo('create_audit'),
                 fn ($q) => $q->where('inspector_id', $user->id)
             )
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->query('status')))
@@ -71,6 +78,8 @@ class InspectionApiController extends Controller
      */
     public function show(Inspection $inspection): JsonResponse
     {
+        $this->authorize('view', $inspection);
+
         $inspection->load(['inspector', 'checklist.items', 'responses.checklistItem', 'responses.images']);
 
         return $this->success(new InspectionResource($inspection));
@@ -82,11 +91,7 @@ class InspectionApiController extends Controller
      */
     public function update(Request $request, Inspection $inspection): JsonResponse
     {
-        $user = $request->user();
-
-        if ($inspection->inspector_id !== $user->id && ! $user->hasAnyRole(['Admin', 'Manager'])) {
-            return $this->forbidden();
-        }
+        $this->authorize('update', $inspection);
 
         $validated = $request->validate([
             'responses'                         => ['required', 'array'],
@@ -106,9 +111,7 @@ class InspectionApiController extends Controller
      */
     public function destroy(Request $request, Inspection $inspection): JsonResponse
     {
-        if (! $request->user()->hasAnyRole(['Admin', 'Manager'])) {
-            return $this->forbidden();
-        }
+        $this->authorize('delete', $inspection);
 
         $inspection->delete();
 

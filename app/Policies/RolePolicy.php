@@ -9,7 +9,7 @@ class RolePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasRole('Admin') && $user->hasPermissionTo('roles.manage');
+        return $user->hasPermissionTo('roles.manage');
     }
 
     public function view(User $user, Role $role): bool

@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Services\MobileTokenService;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuthenticateMobileToken
@@ -37,6 +38,10 @@ class AuthenticateMobileToken
         $this->tokenService->touch($token);
         $request->attributes->set('mobile_token_id', $token->id);
         $request->setUserResolver(fn () => $token->user);
+        // Also wire the auth guard so Gate/policies resolve the mobile user
+        // correctly – without this, $this->authorize() and authorizeResource()
+        // in API controllers see no user and deny every request.
+        Auth::setUser($token->user);
 
         return $next($request);
     }

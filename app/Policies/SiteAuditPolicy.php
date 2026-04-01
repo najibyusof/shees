@@ -9,7 +9,14 @@ class SiteAuditPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->hasPermissionTo('audits.view') || $user->hasPermissionTo('audits.conduct');
+        // view_audit is the canonical permission used in route middleware.
+        // audits.view / audits.conduct are legacy names kept for web workflow.
+        return $user->hasPermissionTo('view_audit')
+            || $user->hasPermissionTo('audits.view')
+            || $user->hasPermissionTo('audits.conduct')
+            || $user->hasPermissionTo('create_audit')
+            || $user->hasPermissionTo('edit_audit')
+            || $user->hasPermissionTo('approve_audit');
     }
 
     public function view(User $user, SiteAudit $siteAudit): bool
@@ -19,12 +26,14 @@ class SiteAuditPolicy
 
     public function create(User $user): bool
     {
-        return $user->hasPermissionTo('audits.conduct');
+        return $user->hasPermissionTo('create_audit')
+            || $user->hasPermissionTo('audits.conduct');
     }
 
     public function update(User $user, SiteAudit $siteAudit): bool
     {
-        if (! $user->hasPermissionTo('audits.conduct')) {
+        if (! $user->hasPermissionTo('edit_audit')
+            && ! $user->hasPermissionTo('audits.conduct')) {
             return false;
         }
 
@@ -36,20 +45,26 @@ class SiteAuditPolicy
             return true;
         }
 
-        return $user->hasAnyRole(['Admin', 'Manager', 'Safety Officer']);
+        // Permission-based fallback — no hardcoded role names.
+        return $user->hasPermissionTo('edit_audit');
+    }
+
+    public function delete(User $user, SiteAudit $siteAudit): bool
+    {
+        return $user->hasPermissionTo('approve_audit')
+            || $user->hasPermissionTo('audits.approve');
     }
 
     public function submit(User $user, SiteAudit $siteAudit): bool
     {
-        return $user->hasPermissionTo('audits.conduct')
+        return ($user->hasPermissionTo('create_audit') || $user->hasPermissionTo('audits.conduct'))
             && $siteAudit->created_by === $user->id
             && in_array($siteAudit->status, ['draft', 'scheduled', 'in_progress', 'rejected'], true);
     }
 
     public function approve(User $user, SiteAudit $siteAudit): bool
     {
-        return $user->hasPermissionTo('audits.approve')
-            && $user->hasAnyRole(SiteAudit::APPROVAL_REQUIRED_ROLES)
+        return ($user->hasPermissionTo('approve_audit') || $user->hasPermissionTo('audits.approve'))
             && in_array($siteAudit->status, ['submitted', 'under_review'], true)
             && $siteAudit->created_by !== $user->id;
     }

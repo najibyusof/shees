@@ -11,7 +11,7 @@ class WorkerTrackingPageController extends Controller
 {
     public function index(Request $request): View
     {
-        abort_unless($request->user()?->hasPermissionTo('workers.view'), 403);
+        $this->authorize('viewAny', Worker::class);
 
         $workers = Worker::query()
             ->with('user')
@@ -34,7 +34,7 @@ class WorkerTrackingPageController extends Controller
 
     public function show(Request $request, Worker $worker): View
     {
-        abort_unless($request->user()?->hasPermissionTo('workers.view'), 403);
+        $this->authorize('view', $worker);
 
         $worker->load('user');
 

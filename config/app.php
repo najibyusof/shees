@@ -123,4 +123,17 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | API Request Signing Secret
+    |--------------------------------------------------------------------------
+    |
+    | Shared secret used for HMAC-SHA256 request signing on sensitive API endpoints.
+    | Used for non-repudiation and request integrity verification.
+    | Set in your .env file as API_SIGNATURE_SECRET
+    |
+    */
+
+    'api_signature_secret' => env('API_SIGNATURE_SECRET', null),
+
 ];

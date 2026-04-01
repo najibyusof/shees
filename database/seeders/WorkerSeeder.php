@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\AttendanceLog;
 use App\Models\User;
 use App\Models\Worker;
+use Carbon\CarbonPeriod;
 use Database\Seeders\Support\SeedDataGenerator;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
@@ -205,6 +206,88 @@ class WorkerSeeder extends Seeder
                 'last_longitude' => $faker->longitude(120.8, 121.2),
                 'last_seen_at' => $latestLogAt,
             ]);
+        }
+
+        $this->seedSixMonthAttendancePatterns($recorders, $faker);
+    }
+
+    private function seedSixMonthAttendancePatterns($recorders, mixed $faker): void
+    {
+        $workers = Worker::query()->limit(35)->get();
+        if ($workers->isEmpty()) {
+            return;
+        }
+
+        $period = CarbonPeriod::create(now()->subMonths(6)->startOfDay(), '1 day', now()->subDay()->endOfDay());
+
+        foreach ($workers as $worker) {
+            $activeBias = $worker->status === 'active' ? 0.9 : ($worker->status === 'on-leave' ? 0.25 : 0.5);
+
+            foreach ($period as $day) {
+                $isWeekend = in_array($day->dayOfWeekIso, [6, 7], true);
+                $baseChance = $isWeekend ? 0.28 : 0.88;
+
+                if (mt_rand(1, 1000) > (int) round($baseChance * $activeBias * 1000)) {
+                    continue;
+                }
+
+                $checkIn = $day->copy()->setTime(random_int(7, 9), random_int(0, 45));
+                $checkOut = $checkIn->copy()->addHours(random_int(8, 11))->addMinutes(random_int(0, 40));
+                $hasCheckout = mt_rand(1, 100) > 10;
+
+                AttendanceLog::factory()
+                    ->count($hasCheckout ? 2 : 1)
+                    ->state(fn () => [
+                        'worker_id' => $worker->id,
+                        'recorded_by' => $recorders->random()->id,
+                        'source' => 'simulated',
+                        'inside_geofence' => true,
+                        'alert_level' => null,
+                        'alert_message' => null,
+                        'meta' => ['seeded' => true, 'pattern' => '6_month_attendance'],
+                        'temporary_id' => (string) Str::uuid(),
+                        'local_created_at' => $checkIn,
+                    ])
+                    ->sequence(
+                        [
+                            'event_type' => 'check_in',
+                            'logged_at' => $checkIn,
+                            'distance_from_geofence_meters' => random_int(1, 55),
+                        ],
+                        [
+                            'event_type' => 'check_out',
+                            'logged_at' => $checkOut,
+                            'distance_from_geofence_meters' => random_int(1, 60),
+                        ]
+                    )
+                    ->create();
+
+                if (mt_rand(1, 100) <= 18) {
+                    $breachTime = $checkIn->copy()->addHours(random_int(1, 6));
+                    AttendanceLog::factory()
+                        ->state(fn () => [
+                            'worker_id' => $worker->id,
+                            'recorded_by' => $recorders->random()->id,
+                            'event_type' => 'ping',
+                            'logged_at' => $breachTime,
+                            'source' => 'simulated',
+                            'inside_geofence' => false,
+                            'distance_from_geofence_meters' => random_int(130, 950),
+                            'alert_level' => random_int(1, 100) <= 30 ? 'high' : 'medium',
+                            'alert_message' => 'Worker outside geofence boundary.',
+                            'meta' => ['seeded' => true, 'pattern' => 'weekday_spike'],
+                            'temporary_id' => (string) Str::uuid(),
+                            'local_created_at' => $breachTime,
+                        ])
+                        ->create();
+                }
+
+                $worker->update([
+                    'last_seen_at' => $hasCheckout ? $checkOut : $checkIn,
+                    'last_latitude' => $faker->latitude(14.4, 14.8),
+                    'last_longitude' => $faker->longitude(120.8, 121.2),
+                ]);
+            }
         }
     }
 }

@@ -7,6 +7,7 @@ use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\CheckPermission;
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\AuthenticateMobileToken;
+use App\Http\Middleware\VerifyRequestSignature;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => CheckPermission::class,
             'mobile.token' => AuthenticateMobileToken::class,
             'request.id' => AssignRequestId::class,
+            'verify-signature' => VerifyRequestSignature::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

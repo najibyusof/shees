@@ -13,17 +13,18 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $allowDemoInProduction = (bool) env('ALLOW_DEMO_SEEDING', false);
+
         $seeders = [
-            PermissionSeeder::class,
-            RolesAndPermissionsSeeder::class,
-            UserSeeder::class,
-            IncidentSeeder::class,
-            TrainingSeeder::class,
-            InspectionSeeder::class,
-            AuditSeeder::class,
-            WorkerSeeder::class,
-            AuditLogSeeder::class,
+            SystemBaselineSeeder::class,
         ];
+
+        if (! app()->environment('production') || $allowDemoInProduction) {
+            $seeders[] = DemoSampleDataSeeder::class;
+        } elseif ($this->command) {
+            $this->command->warn('Demo sample seeding disabled in production.');
+            $this->command->line('Set ALLOW_DEMO_SEEDING=true to include demo seeders.');
+        }
 
         $failed = [];
 

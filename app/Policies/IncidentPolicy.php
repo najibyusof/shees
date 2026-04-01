@@ -19,8 +19,10 @@ class IncidentPolicy
     private function isWorkflowParticipant(User $user): bool
     {
         return $this->isCreator($user)
-            || $user->hasAnyRole(Incident::WORKFLOW_ROLES)
-            || $user->hasPermissionTo("reports.view");
+            || $user->hasPermissionTo('view_incident')
+            || $user->hasPermissionTo('review_incident')
+            || $user->hasPermissionTo('approve_final')
+            || $user->hasPermissionTo('reports.view');
     }
 
     // ── Basic CRUD ────────────────────────────────────────────────────────
@@ -46,7 +48,13 @@ class IncidentPolicy
             return false;
         }
 
-        if ($user->hasRole("Admin")) {
+        // Primary check: explicit edit_incident permission
+        if ($user->hasPermissionTo('edit_incident')) {
+            return true;
+        }
+
+        // Super-admin catch-all: any permission that grants full incident management.
+        if ($user->hasPermissionTo('approve_final')) {
             return true;
         }
 
@@ -79,8 +87,15 @@ class IncidentPolicy
 
     public function delete(User $user, Incident $incident): bool
     {
-        return $user->hasRole("Admin")
-            || ($incident->reported_by === $user->id && $incident->status === "draft");
+        // Admin-level incident deletion: users with review or final-approval permissions.
+        if ($user->hasPermissionTo('approve_final')
+            || $user->hasPermissionTo('review_incident')) {
+            return true;
+        }
+
+        // Owners can only delete their own draft incidents.
+        return $incident->reported_by === $user->id
+            && $incident->status === 'draft';
     }
 
     public function transition(User $user, Incident $incident): bool

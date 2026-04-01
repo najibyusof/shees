@@ -24,7 +24,17 @@ use OpenAPI\Annotations as OA;
  *         @OA\Response(response=200, description="Login successful", @OA\JsonContent(
  *             @OA\Property(property="success", type="boolean", example=true),
  *             @OA\Property(property="message", type="string", example="Login successful."),
- *             @OA\Property(property="data", type="object")
+ *             @OA\Property(property="data", type="object",
+ *                 @OA\Property(property="token", type="string", example="token_value_here"),
+ *                 @OA\Property(property="token_type", type="string", example="Bearer"),
+                @OA\Property(property="dashboard_token", type="string", example="1|sanctum_dashboard_token_here"),
+ *                 @OA\Property(property="session_id", type="integer", example=12),
+ *                 @OA\Property(property="device_name", type="string", example="Samsung S24"),
+ *                 @OA\Property(property="expires_at", type="string", format="date-time", nullable=true),
+ *                 @OA\Property(property="user", ref="#/components/schemas/User"),
+ *                 @OA\Property(property="roles", type="array", @OA\Items(type="string", example="Manager")),
+ *                 @OA\Property(property="permissions", type="array", @OA\Items(type="string", example="view_incident"))
+ *             )
  *         )),
  *         @OA\Response(response=422, description="Validation error", @OA\JsonContent(ref="#/components/schemas/ErrorResponse"))
  *     )

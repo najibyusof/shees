@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\SwaggerController;
 use App\Http\Controllers\Api\V1\AuditApiController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DeviceController;
+use App\Http\Controllers\Api\V1\DashboardAuthController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\IncidentApiController;
 use App\Http\Controllers\Api\V1\IncidentWorkflowApiController;
 use App\Http\Controllers\Api\V1\InspectionApiController;
@@ -61,14 +63,19 @@ Route::prefix('v1')->group(function () {
 
         // --- Incident Workflow (collaborative, comment-driven) ------------
         Route::post('incidents/{incident}/transition', [IncidentWorkflowApiController::class, 'transition'])
+            ->middleware('permission:submit_incident,review_incident,approve_final,approve_closure')
             ->name('api.v1.incidents.transition');
         Route::post('incidents/{incident}/comments', [IncidentWorkflowApiController::class, 'storeComment'])
+            ->middleware('permission:view_incident,create_incident,review_incident,approve_final')
             ->name('api.v1.incidents.comments.store');
         Route::get('incidents/{incident}/allowed-transitions', [IncidentWorkflowApiController::class, 'allowedTransitions'])
+            ->middleware('permission:view_incident,review_incident,approve_final')
             ->name('api.v1.incidents.transitions.index');
         Route::post('comments/{comment}/reply', [IncidentWorkflowApiController::class, 'storeReply'])
+            ->middleware('permission:view_incident,review_incident,approve_final')
             ->name('api.v1.comments.reply');
         Route::patch('comments/{comment}/resolve', [IncidentWorkflowApiController::class, 'resolveComment'])
+            ->middleware('permission:review_incident,approve_final')
             ->name('api.v1.comments.resolve');
 
         // --- Trainings ----------------------------------------------------
@@ -90,10 +97,25 @@ Route::prefix('v1')->group(function () {
 
         // --- Workers & Attendance -----------------------------------------
         Route::post('workers/{worker}/attendance', [WorkerApiController::class, 'logAttendance'])
+            ->middleware('permission:edit_worker,workers.track')
             ->name('api.v1.workers.attendance');
         Route::apiResource('workers', WorkerApiController::class)
             ->names('api.v1.workers');
     });
+});
+
+Route::middleware(['auth:sanctum', 'throttle:dashboard'])->group(function () {
+    Route::get('/dashboard', DashboardController::class)
+        ->middleware('permission:view_dashboard')
+        ->name('api.dashboard');
+
+    Route::get('/dashboard/analytics', [DashboardController::class, 'analytics'])
+        ->middleware('permission:view_dashboard')
+        ->name('api.dashboard.analytics');
+
+    Route::post('/dashboard/logout', DashboardAuthController::class)
+        ->middleware('permission:view_dashboard')
+        ->name('api.dashboard.logout');
 });
 
 // ============================================================================
@@ -120,15 +142,20 @@ Route::prefix('v1/inspection')->group(function () {
             ->name('api.inspection.auth.rotate');
 
         Route::get('/checklists', [InspectionMobileController::class, 'checklists'])
+            ->middleware('permission:view_audit')
             ->name('api.inspection.checklists.index');
 
         Route::post('/runs', [InspectionMobileController::class, 'start'])
+            ->middleware('permission:create_audit,edit_audit,approve_audit')
             ->name('api.inspection.runs.store');
         Route::get('/runs/{inspection}', [InspectionMobileController::class, 'show'])
+            ->middleware('permission:view_audit,edit_audit,approve_audit')
             ->name('api.inspection.runs.show');
         Route::put('/runs/{inspection}/responses', [InspectionMobileController::class, 'updateResponses'])
+            ->middleware('permission:edit_audit,approve_audit')
             ->name('api.inspection.runs.responses.update');
         Route::post('/runs/{inspection}/submit', [InspectionMobileController::class, 'submit'])
+            ->middleware('permission:edit_audit,approve_audit')
             ->name('api.inspection.runs.submit');
 
         Route::post('/sync/upload', [InspectionSyncController::class, 'enqueueUpload'])

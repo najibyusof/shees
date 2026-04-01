@@ -4,7 +4,9 @@
     <x-ui.page-header :title="$checklist->titleForLocale()" subtitle="Checklist template details and builder items.">
         <x-slot:actions>
             <x-ui.button :href="route('inspection-checklists.index')" variant="secondary" size="md">Back</x-ui.button>
-            <x-ui.button :href="route('inspection-checklists.edit', $checklist)" variant="primary" size="md">Edit</x-ui.button>
+            @can('update', $checklist)
+                <x-ui.button :href="route('inspection-checklists.edit', $checklist)" variant="primary" size="md">Edit</x-ui.button>
+            @endcan
         </x-slot:actions>
     </x-ui.page-header>
 @endsection
@@ -65,8 +67,10 @@
         </x-ui.card>
 
         <div class="flex justify-end">
-            <x-ui.button :href="route('inspections.create', ['inspection_checklist_id' => $checklist->id])" variant="primary" size="md">Start Inspection With This
-                Checklist</x-ui.button>
+            @can('create', \App\Models\Inspection::class)
+                <x-ui.button :href="route('inspections.create', ['inspection_checklist_id' => $checklist->id])" variant="primary" size="md">Start Inspection With This
+                    Checklist</x-ui.button>
+            @endcan
         </div>
     </div>
 @endsection

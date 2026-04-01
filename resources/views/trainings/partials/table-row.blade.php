@@ -24,7 +24,11 @@
 
 <td class="px-4 py-3 align-top text-right">
     <div class="inline-flex items-center gap-1">
-        <x-ui.button :href="route('trainings.show', $row)" variant="ghost" size="sm">View</x-ui.button>
-        <x-ui.button :href="route('trainings.edit', $row)" variant="secondary" size="sm">Edit</x-ui.button>
+        @can('view', $row)
+            <x-ui.button :href="route('trainings.show', $row)" variant="ghost" size="sm">View</x-ui.button>
+        @endcan
+        @can('update', $row)
+            <x-ui.button :href="route('trainings.edit', $row)" variant="secondary" size="sm">Edit</x-ui.button>
+        @endcan
     </div>
 </td>

@@ -11,7 +11,10 @@ use Illuminate\View\View;
 
 class InspectionChecklistController extends Controller
 {
-    public function __construct(private readonly InspectionChecklistService $checklistService) {}
+    public function __construct(private readonly InspectionChecklistService $checklistService)
+    {
+        $this->authorizeResource(InspectionChecklist::class, 'inspection_checklist');
+    }
 
     public function index(): View
     {

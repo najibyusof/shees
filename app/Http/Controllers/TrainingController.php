@@ -16,7 +16,10 @@ use Illuminate\View\View;
 
 class TrainingController extends Controller
 {
-    public function __construct(private readonly TrainingService $trainingService) {}
+    public function __construct(private readonly TrainingService $trainingService)
+    {
+        $this->authorizeResource(Training::class, 'training');
+    }
 
     public function index(Request $request): View
     {
@@ -109,6 +112,8 @@ class TrainingController extends Controller
 
     public function assignUsers(AssignTrainingUsersRequest $request, Training $training): RedirectResponse
     {
+        $this->authorize('assignUsers', $training);
+
         $this->trainingService->assignUsers($training, $request->validated('user_ids'), $request->user());
 
         return redirect()->route('trainings.show', $training)->with('toast', [
@@ -123,6 +128,8 @@ class TrainingController extends Controller
         Training $training,
         User $user
     ): RedirectResponse {
+        $this->authorize('markCompletion', $training);
+
         $this->trainingService->markCompletion($training, $user->id, $request->validated('completion_status'));
 
         return redirect()->route('trainings.show', $training)->with('toast', [
@@ -134,6 +141,8 @@ class TrainingController extends Controller
 
     public function uploadCertificate(UploadCertificateRequest $request, Training $training): RedirectResponse
     {
+        $this->authorize('uploadCertificate', $training);
+
         $validated = $request->validated();
 
         $this->trainingService->uploadCertificate(
@@ -154,6 +163,8 @@ class TrainingController extends Controller
 
     public function bulkAction(Request $request): RedirectResponse
     {
+        $this->authorize('viewAny', Training::class);
+
         $validated = $request->validate([
             'selected' => ['required', 'array', 'min:1'],
             'selected.*' => ['integer', 'exists:trainings,id'],
@@ -163,15 +174,40 @@ class TrainingController extends Controller
 
         $selectedIds = array_values(array_unique(array_map('intval', $validated['selected'])));
         $totalSelected = count($selectedIds);
+        $selectedTrainings = Training::query()->whereIn('id', $selectedIds)->get();
+
+        if ($selectedTrainings->isEmpty()) {
+            return $this->redirectToIndexWithQuery($request)->with('toast', [
+                'type' => 'warning',
+                'title' => 'No Trainings Selected',
+                'message' => 'No valid trainings were found for this action.',
+            ]);
+        }
+
+        $targetAbility = $validated['action'] === 'delete' ? 'delete' : 'update';
+        $authorizedIds = $selectedTrainings
+            ->filter(fn (Training $training) => $request->user()->can($targetAbility, $training))
+            ->pluck('id')
+            ->all();
+
+        $unauthorizedCount = $totalSelected - count($authorizedIds);
+
+        if ($authorizedIds === []) {
+            return $this->redirectToIndexWithQuery($request)->with('toast', [
+                'type' => 'warning',
+                'title' => 'Action Not Allowed',
+                'message' => "Updated: 0, Skipped: 0, Unauthorized: {$unauthorizedCount}.",
+            ]);
+        }
 
         if ($validated['action'] === 'delete') {
-            $deletedCount = Training::query()->whereIn('id', $selectedIds)->delete();
-            $skippedCount = max(0, $totalSelected - $deletedCount);
+            $deletedCount = Training::query()->whereIn('id', $authorizedIds)->delete();
+            $skippedCount = max(0, count($authorizedIds) - $deletedCount);
 
             return $this->redirectToIndexWithQuery($request)->with('toast', [
                 'type' => 'success',
                 'title' => 'Bulk Delete Complete',
-                'message' => "Deleted: {$deletedCount}, Skipped: {$skippedCount}, Unauthorized: 0.",
+                'message' => "Deleted: {$deletedCount}, Skipped: {$skippedCount}, Unauthorized: {$unauthorizedCount}.",
             ]);
         }
 
@@ -183,17 +219,17 @@ class TrainingController extends Controller
         }
 
         $updatedCount = Training::query()
-            ->whereIn('id', $selectedIds)
+            ->whereIn('id', $authorizedIds)
             ->update([
                 'is_active' => $status === 'active',
             ]);
 
-        $skippedCount = max(0, $totalSelected - $updatedCount);
+        $skippedCount = max(0, count($authorizedIds) - $updatedCount);
 
         return $this->redirectToIndexWithQuery($request)->with('toast', [
             'type' => 'success',
             'title' => 'Bulk Update Complete',
-            'message' => "Updated: {$updatedCount}, Skipped: {$skippedCount}, Unauthorized: 0.",
+            'message' => "Updated: {$updatedCount}, Skipped: {$skippedCount}, Unauthorized: {$unauthorizedCount}.",
         ]);
     }
 

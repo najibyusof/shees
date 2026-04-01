@@ -13,8 +13,7 @@ class RolesAndPermissionsSeeder extends Seeder
      */
     public function run(): void
     {
-        // Keep RoleSeeder as the single source of truth for role + permission maps.
-        $this->call(RoleSeeder::class);
+        $this->call(BaselineRbacSeeder::class);
 
         $admin = Role::query()->where('name', 'Admin')->first();
         $firstUser = User::query()->first();

@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Traits\HasResourceScoping;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,7 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Incident extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes, HasResourceScoping;
 
     public const CLASSIFICATIONS = [
         'Minor',
@@ -335,5 +337,34 @@ class Incident extends Model
         $direction = strtolower((string) $direction) === 'asc' ? 'asc' : 'desc';
 
         return $query->orderBy($sort, $direction)->orderBy('id', 'desc');
+    }
+
+    /**
+     * Scope query to incidents accessible by the given user.
+     *
+     * Access rules based on role:
+     * - Admin: all incidents
+     * - HOD HSSE / APSB PD / MRTS: all incidents in their modules
+     * - Manager / Safety Officer: incidents they reported or are investigating
+     * - Worker / Supervisor: own reported incidents only
+     */
+    public function scopeAccessibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->hasRole('Admin')) {
+            return $query;
+        }
+
+        // HOD HSSE, APSB PD, MRTS can view all incidents for workflow processing
+        if ($user->hasAnyRole(['HOD HSSE', 'APSB PD', 'MRTS'])) {
+            return $query;
+        }
+
+        // Manager and Safety Officer can view incidents they reported or are investigating
+        if ($user->hasAnyRole(['Manager', 'Safety Officer'])) {
+            return $query->where('reported_by', $user->id);
+        }
+
+        // Worker and Supervisor can view only incidents they reported
+        return $query->where('reported_by', $user->id);
     }
 }

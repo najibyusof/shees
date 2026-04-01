@@ -71,6 +71,22 @@ php artisan swagger:generate
 npm run build
 ```
 
+## Demo Analytics Dataset Setup
+
+For a clean demo database with realistic analytics trends, run seeders in this order:
+
+```bash
+php artisan migrate:fresh
+php artisan db:seed --class=SystemBaselineSeeder
+php artisan db:seed --class=DemoSampleDataSeeder
+```
+
+Why this order:
+
+- `SystemBaselineSeeder` creates RBAC roles/permissions and required lookup/reference data.
+- `DemoSampleDataSeeder` then builds analytics-heavy sample data with role-aware visibility.
+- Incident volumes are constrained to demo-safe ranges (target ~170, hard cap 200).
+
 ## API Documentation
 
 - Swagger UI: `http://localhost/api/documentation`

@@ -25,17 +25,32 @@ use App\Models\VictimType;
 use App\Models\WorkActivity;
 use App\Models\WorkPackage;
 use Database\Seeders\Support\SeedDataGenerator;
+use Illuminate\Database\Eloquent\Factories\Sequence;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class IncidentSeeder extends Seeder
 {
+    private const ANALYTICS_TARGET_TOTAL = 170;
+
+    private const ANALYTICS_HARD_CAP = 200;
+
     public function run(): void
     {
         $faker = class_exists('Faker\\Factory')
             ? \Faker\Factory::create()
             : new SeedDataGenerator();
+
+        $startingIncidents = Incident::query()->count();
+        if ($startingIncidents >= self::ANALYTICS_TARGET_TOTAL && $startingIncidents <= self::ANALYTICS_HARD_CAP) {
+            return;
+        }
+
+        if ($startingIncidents >= self::ANALYTICS_HARD_CAP) {
+            return;
+        }
 
         $reporters = User::query()
             ->whereHas('roles', fn ($query) => $query->whereIn('name', ['Worker', 'Supervisor']))
@@ -221,7 +236,10 @@ class IncidentSeeder extends Seeder
             'closed', 'closed', 'closed', 'closed',
         ];
 
-        foreach ($statuses as $status) {
+        $maxStatusToSeed = max(0, min(count($statuses), $this->remainingIncidentCapacity() - 4));
+        $statusesToSeed = array_slice($statuses, 0, $maxStatusToSeed);
+
+        foreach ($statusesToSeed as $status) {
             $reporter = $reporters->random();
             $manager = $managers->random();
             $hodHsse = $hodHsseUsers->random();
@@ -459,7 +477,8 @@ class IncidentSeeder extends Seeder
         }
 
         // Scenario set: 3 high-risk incidents with full workflow and corrective action trail.
-        for ($i = 1; $i <= 3; $i++) {
+        $maxHighRiskScenarios = min(3, max(0, $this->remainingIncidentCapacity() - 1));
+        for ($i = 1; $i <= $maxHighRiskScenarios; $i++) {
             $reporter = $reporters->random();
             $manager = $managers->random();
             $hodHsse = $hodHsseUsers->random();
@@ -660,136 +679,154 @@ class IncidentSeeder extends Seeder
         }
 
         // Scenario: escalation when incident is not closed within 3 days.
-        $escalationReporter = $reporters->random();
-        $escalationManager = $managers->random();
-        $escalationHodHsse = $hodHsseUsers->random();
-        $escalationApsbPd = $apsbPdUsers->random();
-        $escalationMrts = $mrtsUsers->random();
-        $escalationOccurredAt = now()->subDays(8);
-        $escalationSubmittedAt = (clone $escalationOccurredAt)->addHours(2);
-        $escalatedAt = (clone $escalationSubmittedAt)->addDays(3)->addHours(2);
-        $escalationFinalSubmittedAt = (clone $escalatedAt)->addHours(6);
-        $escalationFinalReviewedAt = (clone $escalationFinalSubmittedAt)->addHours(6);
-        $escalationPendingClosureAt = (clone $escalationFinalReviewedAt)->addHours(4);
-        $escalationClosedAt = (clone $escalationPendingClosureAt)->addHours(4);
+        if ($this->remainingIncidentCapacity() > 0) {
+            $escalationReporter = $reporters->random();
+            $escalationManager = $managers->random();
+            $escalationHodHsse = $hodHsseUsers->random();
+            $escalationApsbPd = $apsbPdUsers->random();
+            $escalationMrts = $mrtsUsers->random();
+            $escalationOccurredAt = now()->subDays(8);
+            $escalationSubmittedAt = (clone $escalationOccurredAt)->addHours(2);
+            $escalatedAt = (clone $escalationSubmittedAt)->addDays(3)->addHours(2);
+            $escalationFinalSubmittedAt = (clone $escalatedAt)->addHours(6);
+            $escalationFinalReviewedAt = (clone $escalationFinalSubmittedAt)->addHours(6);
+            $escalationPendingClosureAt = (clone $escalationFinalReviewedAt)->addHours(4);
+            $escalationClosedAt = (clone $escalationPendingClosureAt)->addHours(4);
 
-        $major = $classifications->firstWhere('code', 'major') ?? $this->pickRandom($classifications);
-        $location = $this->pickRandom($locations);
-        $workPackage = $this->pickRandom($workPackages);
-        $workActivity = $this->pickRandom($workActivities);
-        $subcontractor = $this->pickRandom($subcontractors);
-        $rootCause = $this->pickRandom($causeTypes);
-        $statusRecord = $incidentStatuses->firstWhere('code', 'closed');
-        $incidentType = $this->pickRandom($incidentTypes);
-        $locationLabel = $location?->name ?? $faker->randomElement(['Warehouse A', 'Plant 1', 'Boiler Room', 'Loading Dock', 'Chemical Storage']);
+            $major = $classifications->firstWhere('code', 'major') ?? $this->pickRandom($classifications);
+            $location = $this->pickRandom($locations);
+            $workPackage = $this->pickRandom($workPackages);
+            $workActivity = $this->pickRandom($workActivities);
+            $subcontractor = $this->pickRandom($subcontractors);
+            $rootCause = $this->pickRandom($causeTypes);
+            $statusRecord = $incidentStatuses->firstWhere('code', 'closed');
+            $incidentType = $this->pickRandom($incidentTypes);
+            $locationLabel = $location?->name ?? $faker->randomElement(['Warehouse A', 'Plant 1', 'Boiler Room', 'Loading Dock', 'Chemical Storage']);
 
-        $escalatedIncident = Incident::query()->create([
-            'reported_by' => $escalationReporter->id,
-            'submitted_by' => $escalationManager->id,
-            'reviewed_by' => $escalationHodHsse->id,
-            'approved_by' => $escalationMrts->id,
-            'incident_reference_number' => $this->makeReferenceNumber(),
-            'incident_type_id' => $incidentType?->id,
-            'status_id' => $statusRecord?->id,
-            'classification_id' => $major?->id,
-            'work_package_id' => $workPackage?->id,
-            'location_id' => $location?->id,
-            'location_type_id' => $location?->location_type_id,
-            'work_activity_id' => $workActivity?->id,
-            'other_location' => $locationLabel,
-            'incident_description' => 'Closure SLA breached; escalated after 3 days pending final workflow stages.',
-            'immediate_response' => 'Temporary controls remained active while approval was pending.',
-            'subcontractor_id' => $subcontractor?->id,
-            'person_in_charge' => $faker->name(),
-            'subcontractor_contact_number' => $subcontractor?->contact_number ?? $faker->numerify('+60#########'),
-            'gps_location' => $faker->latitude().', '.$faker->longitude(),
-            'activity_during_incident' => $faker->sentence(10),
-            'type_of_accident' => 'Confined Space Permit Delay',
-            'basic_effect' => 'Escalation required due to SLA breach.',
-            'conclusion' => 'Workflow escalation policy effective and traceable.',
-            'close_remark' => 'Closed post-escalation workflow completion.',
-            'rootcause_id' => $rootCause?->id,
-            'status' => 'closed',
-            'datetime' => $escalationOccurredAt,
-            'incident_date' => $escalationOccurredAt->toDateString(),
-            'incident_time' => $escalationOccurredAt->format('H:i:s'),
-            'submitted_at' => $escalationSubmittedAt,
-            'reviewed_at' => $escalatedAt,
-            'approved_at' => $escalationClosedAt,
-            'title' => 'Escalation Case: Delayed approval for confined space incident',
-            'location' => $locationLabel,
-            'classification' => $major?->name ?? 'Major',
-            'description' => 'Closure SLA breached; escalated after 3 days pending final workflow stages.',
-            'temporary_id' => (string) Str::uuid(),
-            'local_created_at' => (clone $escalationOccurredAt)->subMinutes(random_int(15, 60)),
-            'created_at' => (clone $escalationOccurredAt)->subMinutes(random_int(20, 90)),
-            'updated_at' => $escalationClosedAt,
-        ]);
+            $escalatedIncident = Incident::query()->create([
+                'reported_by' => $escalationReporter->id,
+                'submitted_by' => $escalationManager->id,
+                'reviewed_by' => $escalationHodHsse->id,
+                'approved_by' => $escalationMrts->id,
+                'incident_reference_number' => $this->makeReferenceNumber(),
+                'incident_type_id' => $incidentType?->id,
+                'status_id' => $statusRecord?->id,
+                'classification_id' => $major?->id,
+                'work_package_id' => $workPackage?->id,
+                'location_id' => $location?->id,
+                'location_type_id' => $location?->location_type_id,
+                'work_activity_id' => $workActivity?->id,
+                'other_location' => $locationLabel,
+                'incident_description' => 'Closure SLA breached; escalated after 3 days pending final workflow stages.',
+                'immediate_response' => 'Temporary controls remained active while approval was pending.',
+                'subcontractor_id' => $subcontractor?->id,
+                'person_in_charge' => $faker->name(),
+                'subcontractor_contact_number' => $subcontractor?->contact_number ?? $faker->numerify('+60#########'),
+                'gps_location' => $faker->latitude().', '.$faker->longitude(),
+                'activity_during_incident' => $faker->sentence(10),
+                'type_of_accident' => 'Confined Space Permit Delay',
+                'basic_effect' => 'Escalation required due to SLA breach.',
+                'conclusion' => 'Workflow escalation policy effective and traceable.',
+                'close_remark' => 'Closed post-escalation workflow completion.',
+                'rootcause_id' => $rootCause?->id,
+                'status' => 'closed',
+                'datetime' => $escalationOccurredAt,
+                'incident_date' => $escalationOccurredAt->toDateString(),
+                'incident_time' => $escalationOccurredAt->format('H:i:s'),
+                'submitted_at' => $escalationSubmittedAt,
+                'reviewed_at' => $escalatedAt,
+                'approved_at' => $escalationClosedAt,
+                'title' => 'Escalation Case: Delayed approval for confined space incident',
+                'location' => $locationLabel,
+                'classification' => $major?->name ?? 'Major',
+                'description' => 'Closure SLA breached; escalated after 3 days pending final workflow stages.',
+                'temporary_id' => (string) Str::uuid(),
+                'local_created_at' => (clone $escalationOccurredAt)->subMinutes(random_int(15, 60)),
+                'created_at' => (clone $escalationOccurredAt)->subMinutes(random_int(20, 90)),
+                'updated_at' => $escalationClosedAt,
+            ]);
 
-        IncidentComment::query()->create([
-            'incident_id' => $escalatedIncident->id,
-            'user_id' => $escalationHodHsse->id,
-            'comment_type' => 'review',
-            'comment' => 'No closure after 72 hours; escalating per workflow SLA.',
-            'temporary_id' => (string) Str::uuid(),
-            'local_created_at' => $escalatedAt,
-            'created_at' => $escalatedAt,
-            'updated_at' => $escalatedAt,
-        ]);
+            IncidentComment::query()->create([
+                'incident_id' => $escalatedIncident->id,
+                'user_id' => $escalationHodHsse->id,
+                'comment_type' => 'review',
+                'comment' => 'No closure after 72 hours; escalating per workflow SLA.',
+                'temporary_id' => (string) Str::uuid(),
+                'local_created_at' => $escalatedAt,
+                'created_at' => $escalatedAt,
+                'updated_at' => $escalatedAt,
+            ]);
 
-        $this->seedIncidentAggregate(
-            $escalatedIncident,
-            $faker,
-            $victimTypes,
-            $damageTypes,
-            $causeTypes,
-            $factorTypes,
+            $this->seedIncidentAggregate(
+                $escalatedIncident,
+                $faker,
+                $victimTypes,
+                $damageTypes,
+                $causeTypes,
+                $factorTypes,
+                $workActivities,
+                $externalParties,
+                true
+            );
+
+            IncidentApproval::query()->create([
+                'incident_id' => $escalatedIncident->id,
+                'approver_id' => $escalationHodHsse->id,
+                'approver_role' => 'HOD HSSE',
+                'decision' => 'approved',
+                'remarks' => 'Draft review done; pending final submission sign-off.',
+                'decided_at' => $escalatedAt,
+            ]);
+
+            IncidentApproval::query()->create([
+                'incident_id' => $escalatedIncident->id,
+                'approver_id' => $escalationApsbPd->id,
+                'approver_role' => 'APSB PD',
+                'decision' => 'approved',
+                'remarks' => 'Final submission approved post-escalation.',
+                'decided_at' => $escalationFinalSubmittedAt,
+            ]);
+
+            IncidentApproval::query()->create([
+                'incident_id' => $escalatedIncident->id,
+                'approver_id' => $escalationMrts->id,
+                'approver_role' => 'MRTS',
+                'decision' => 'approved',
+                'remarks' => 'Final review and closure completed post-escalation.',
+                'decided_at' => $escalationClosedAt,
+            ]);
+
+            AuditLog::query()->create([
+                'user_id' => $escalationHodHsse->id,
+                'module' => 'incidents',
+                'action' => 'escalate',
+                'auditable_type' => Incident::class,
+                'auditable_id' => $escalatedIncident->id,
+                'metadata' => [
+                    'description' => 'Incident escalated after >3 days pending workflow closure.',
+                    'hours_to_escalation' => 74,
+                    'seeded' => true,
+                ],
+                'created_at' => $escalatedAt,
+                'updated_at' => $escalatedAt,
+            ]);
+        }
+
+        $this->seedAnalyticsVolumeIncidents(
+            self::ANALYTICS_TARGET_TOTAL,
+            $reporters,
+            $managers,
+            $hodHsseUsers,
+            $mrtsUsers,
+            $incidentTypes,
+            $classifications,
+            $locations,
+            $workPackages,
             $workActivities,
-            $externalParties,
-            true
+            $subcontractors,
+            $causeTypes,
+            $incidentStatuses
         );
-
-        IncidentApproval::query()->create([
-            'incident_id' => $escalatedIncident->id,
-            'approver_id' => $escalationHodHsse->id,
-            'approver_role' => 'HOD HSSE',
-            'decision' => 'approved',
-            'remarks' => 'Draft review done; pending final submission sign-off.',
-            'decided_at' => $escalatedAt,
-        ]);
-
-        IncidentApproval::query()->create([
-            'incident_id' => $escalatedIncident->id,
-            'approver_id' => $escalationApsbPd->id,
-            'approver_role' => 'APSB PD',
-            'decision' => 'approved',
-            'remarks' => 'Final submission approved post-escalation.',
-            'decided_at' => $escalationFinalSubmittedAt,
-        ]);
-
-        IncidentApproval::query()->create([
-            'incident_id' => $escalatedIncident->id,
-            'approver_id' => $escalationMrts->id,
-            'approver_role' => 'MRTS',
-            'decision' => 'approved',
-            'remarks' => 'Final review and closure completed post-escalation.',
-            'decided_at' => $escalationClosedAt,
-        ]);
-
-        AuditLog::query()->create([
-            'user_id' => $escalationHodHsse->id,
-            'module' => 'incidents',
-            'action' => 'escalate',
-            'auditable_type' => Incident::class,
-            'auditable_id' => $escalatedIncident->id,
-            'metadata' => [
-                'description' => 'Incident escalated after >3 days pending workflow closure.',
-                'hours_to_escalation' => 74,
-                'seeded' => true,
-            ],
-            'created_at' => $escalatedAt,
-            'updated_at' => $escalatedAt,
-        ]);
     }
 
     private function makeReferenceNumber(): string
@@ -922,6 +959,178 @@ class IncidentSeeder extends Seeder
         $incident->contributingFactors()->sync($this->randomSubsetIds($factorTypes, 3));
         $incident->workActivities()->sync($this->randomSubsetIds($workActivities, 3));
         $incident->externalParties()->sync($this->randomSubsetIds($externalParties, 3));
+    }
+
+    private function seedAnalyticsVolumeIncidents(
+        int $targetTotal,
+        Collection $reporters,
+        Collection $managers,
+        Collection $hodHsseUsers,
+        Collection $mrtsUsers,
+        Collection $incidentTypes,
+        Collection $classifications,
+        Collection $locations,
+        Collection $workPackages,
+        Collection $workActivities,
+        Collection $subcontractors,
+        Collection $causeTypes,
+        Collection $incidentStatuses
+    ): void {
+        $hardCap = self::ANALYTICS_HARD_CAP;
+        $current = Incident::query()->count();
+        $toCreate = max(0, min($targetTotal, $hardCap) - $current);
+
+        if ($toCreate <= 0) {
+            return;
+        }
+
+        $statusWeights = [
+            'draft' => 22,
+            'draft_submitted' => 18,
+            'draft_reviewed' => 16,
+            'final_submitted' => 14,
+            'final_reviewed' => 12,
+            'pending_closure' => 8,
+            'closed' => 10,
+        ];
+
+        $monthWeights = [
+            1 => 0.8,
+            2 => 0.9,
+            3 => 1.2,
+            4 => 1.0,
+            5 => 1.15,
+            6 => 1.35,
+            7 => 1.25,
+            8 => 0.85,
+            9 => 0.95,
+            10 => 1.3,
+            11 => 1.1,
+            12 => 0.7,
+        ];
+
+        Incident::factory()
+            ->count($toCreate)
+            ->sequence(function (Sequence $sequence) use (
+                $statusWeights,
+                $monthWeights,
+                $reporters,
+                $managers,
+                $hodHsseUsers,
+                $mrtsUsers,
+                $incidentTypes,
+                $classifications,
+                $locations,
+                $workPackages,
+                $workActivities,
+                $subcontractors,
+                $causeTypes,
+                $incidentStatuses
+            ): array {
+                $status = $this->weightedChoice($statusWeights);
+                $occurredAt = $this->sampleIncidentDate($monthWeights);
+                $submittedAt = in_array($status, ['draft_submitted', 'draft_reviewed', 'final_submitted', 'final_reviewed', 'pending_closure', 'closed'], true)
+                    ? (clone $occurredAt)->addHours(random_int(2, 18))
+                    : null;
+                $reviewedAt = in_array($status, ['draft_reviewed', 'final_submitted', 'final_reviewed', 'pending_closure', 'closed'], true)
+                    ? ($submittedAt ? (clone $submittedAt)->addHours(random_int(2, 24)) : null)
+                    : null;
+                $closedAt = $status === 'closed'
+                    ? ($reviewedAt ? (clone $reviewedAt)->addHours(random_int(6, 48)) : (clone $occurredAt)->addDays(random_int(3, 8)))
+                    : null;
+
+                $location = $this->pickRandom($locations);
+                $classification = $this->pickRandom($classifications);
+                $workPackage = $this->pickRandom($workPackages);
+                $workActivity = $this->pickRandom($workActivities);
+                $incidentType = $this->pickRandom($incidentTypes);
+                $subcontractor = $this->pickRandom($subcontractors);
+                $rootCause = $this->pickRandom($causeTypes);
+                $statusRecord = $incidentStatuses->firstWhere('code', $status);
+                $reporter = $this->pickRandom($reporters);
+
+                return [
+                    'reported_by' => $reporter?->id,
+                    'submitted_by' => $submittedAt ? $this->pickRandom($managers)?->id : null,
+                    'reviewed_by' => $reviewedAt ? $this->pickRandom($hodHsseUsers)?->id : null,
+                    'approved_by' => $closedAt ? $this->pickRandom($mrtsUsers)?->id : null,
+                    'incident_reference_number' => $this->makeReferenceNumber(),
+                    'status' => $status,
+                    'status_id' => $statusRecord?->id,
+                    'incident_type_id' => $incidentType?->id,
+                    'classification' => $classification?->name ?? 'Minor',
+                    'classification_id' => $classification?->id,
+                    'location' => $location?->name,
+                    'location_id' => $location?->id,
+                    'location_type_id' => $location?->location_type_id,
+                    'other_location' => $location?->name,
+                    'work_package_id' => $workPackage?->id,
+                    'work_activity_id' => $workActivity?->id,
+                    'subcontractor_id' => $subcontractor?->id,
+                    'subcontractor_contact_number' => $subcontractor?->contact_number,
+                    'rootcause_id' => $rootCause?->id,
+                    'datetime' => $occurredAt,
+                    'incident_date' => $occurredAt->toDateString(),
+                    'incident_time' => $occurredAt->format('H:i:s'),
+                    'submitted_at' => $submittedAt,
+                    'reviewed_at' => $reviewedAt,
+                    'approved_at' => $closedAt,
+                    'created_at' => (clone $occurredAt)->subMinutes(random_int(10, 80)),
+                    'updated_at' => $closedAt ?? (clone $occurredAt)->addHours(random_int(1, 72)),
+                ];
+            })
+            ->state(fn (array $attrs): array => [
+                'title' => 'Patterned incident #'.str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT),
+                'description' => $attrs['description'] ?? 'Seeded for analytics trend realism.',
+                'incident_description' => $attrs['incident_description'] ?? 'Seeded for analytics trend realism.',
+            ])
+            ->create();
+    }
+
+    private function remainingIncidentCapacity(): int
+    {
+        return max(0, self::ANALYTICS_HARD_CAP - Incident::query()->count());
+    }
+
+    /**
+     * @param array<string,int|float> $weights
+     */
+    private function weightedChoice(array $weights): string
+    {
+        $total = array_sum($weights);
+        $point = mt_rand(1, (int) max(1, $total));
+        $cursor = 0;
+
+        foreach ($weights as $value => $weight) {
+            $cursor += (int) $weight;
+            if ($point <= $cursor) {
+                return (string) $value;
+            }
+        }
+
+        return (string) array_key_first($weights);
+    }
+
+    /**
+     * @param array<int,float> $monthWeights
+     */
+    private function sampleIncidentDate(array $monthWeights): Carbon
+    {
+        while (true) {
+            $date = now()
+                ->subDays(random_int(0, 360))
+                ->startOfDay()
+                ->addHours(random_int(6, 20))
+                ->addMinutes(random_int(0, 59));
+
+            $weekdayWeight = in_array($date->dayOfWeekIso, [6, 7], true) ? 0.35 : 1.0;
+            $monthWeight = $monthWeights[$date->month] ?? 1.0;
+            $acceptance = min(0.98, ($weekdayWeight * $monthWeight) / 1.4);
+
+            if (mt_rand(1, 1000) <= (int) round($acceptance * 1000)) {
+                return $date;
+            }
+        }
     }
 }
 
